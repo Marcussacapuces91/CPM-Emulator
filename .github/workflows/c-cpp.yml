@@ -19,7 +19,7 @@ jobs:
     - name: import Z80-support.h
       uses: wei/wget@v1
       with:
-        args: -O Z80-support.h https://github.com/simonowen/tilemap/raw/master
+        args: -qO- https://github.com/simonowen/tilemap/raw/master/Z80-support.h
 
     # Runs a single command using the runners shell
     - name: Run a one-line script
