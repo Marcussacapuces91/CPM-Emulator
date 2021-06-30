@@ -12,6 +12,17 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+	  
+	- name: import Z80-support.h
+	  run: git archive --remote=ssh://github.com/simonowen/tilemap.git HEAD Z80-support.h | tar -x
+	  
+#https://github.com/simonowen/tilemap/blob/master/Z80-support.h
+	- name: import Z80.h
+	
+	- name: import Z80.c
+	  
+	  
+	  
 #    - name: configure
 #      run: configure
 #    - name: make
