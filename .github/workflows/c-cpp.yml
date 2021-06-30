@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Build C/C++ code
 
 on:
   push:
@@ -19,17 +19,17 @@ jobs:
     - name: import Z80-support.h @simonowen
       uses: wei/wget@v1
       with:
-        args: https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
+        args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
 
     - name: import Z80.h @redcode
       uses: wei/wget@v1
       with:
-        args: https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.h
+        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.h
 
     - name: import Z80.c @redcode
       uses: wei/wget@v1
       with:
-        args: https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
+        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
 
     # Runs a single command using the runners shell
     - name: Run a one-line script
