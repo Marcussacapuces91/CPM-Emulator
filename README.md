@@ -1,4 +1,7 @@
 # CPM-Emulator
+
+[![License][license-image]][license-url]
+
 > Yet another Z80 Computer with CP/M capabilities (no BIOS, emulated BDOS, executed CP/M)
 
 <!--
@@ -90,3 +93,7 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 [travis-image]: https://img.shields.io/travis/dbader/node-datadog-metrics/master.svg?style=flat-square
 [travis-url]: https://travis-ci.org/dbader/node-datadog-metrics
 [wiki]: https://github.com/yourname/yourproject/wiki
+
+[license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[license-url]: LICENSE
+
