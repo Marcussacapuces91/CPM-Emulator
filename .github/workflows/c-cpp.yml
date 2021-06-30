@@ -17,8 +17,9 @@ jobs:
       uses: actions/checkout@v2
 
     - name: import Z80-support.h
-      run: git archive --remote=ssh://github.com/simonowen/tilemap.git HEAD Z80-support.h | tar -x
-
+      uses: wei/wget@v1
+      with:
+        args: -O Z80-support.h https://github.com/simonowen/tilemap/raw/master
 
     # Runs a single command using the runners shell
     - name: Run a one-line script
