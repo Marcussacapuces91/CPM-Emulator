@@ -12,12 +12,13 @@ A C++ CP/M machine emulator with embedded [Z80 by Sainz de Baranda y Goñi, Manu
 Tested with ZEXDOC from http://mdfs.net/Software/Z80/Exerciser/
 
 <figure>
-  <img src="CPM_2-2.jpg" alt="CPM 2.2 screenshot" style="width:200px;"/>
+  <img src="CPM_2-2.jpg" alt="CPM 2.2 screenshot" width="400px" style="width:200px;"/>
   <figcaption>Par <a href="//commons.wikimedia.org/wiki/User:Mspecht" title="User:Mspecht">Mspecht</a> — <span class="int-own-work" lang="fr">Travail personnel</span>, <a href="https://creativecommons.org/licenses/by-sa/3.0" title="Creative Commons Attribution-Share Alike 3.0">CC BY-SA 3.0</a>, <a href="https://commons.wikimedia.org/w/index.php?curid=16374288">Lien</a></figcaption>
 </figure>
   
 ## Installation
 
+<!--
 OS X & Linux:
 
 ```sh
@@ -29,6 +30,7 @@ Windows:
 ```sh
 edit autoexec.bat
 ```
+-->
 
 ## Usage example
 
@@ -38,39 +40,44 @@ _For more examples and usage, please refer to the [Wiki][wiki]._
 
 ## Development setup
 
-Describe how to install all development dependencies and how to run an automated test-suite of some kind. Potentially do this for multiple platforms.
+* Installer le code disponible dans ce repository. 
+* Ajouter le code de https://github.com/redcode/Z80 ([licence GNU Public Licence v3](http://www.gnu.org/copyleft/gpl.html)) :
 
+  Copier les fichiers suivant dans le répertoire /source :
+    * [Z80.h](https://github.com/redcode/Z80/blob/master/API/emulation/CPU/Z80.h) et 
+    * [Z80.c](https://github.com/redcode/Z80/blob/master/sources/Z80.c).
+
+* Ajouter aussi le code, sur la base du commentaire (https://github.com/redcode/Z/issues/3#issuecomment-520175069) pour remplacer la [lib Z](https://github.com/redcode/Z) qui ne compile pas sous GCC :
+    * [Z80-support.h](https://github.com/simonowen/tilemap/blob/master/Z80-support.h)
+
+<!--
 ```sh
 make install
 npm test
 ```
+-->
 
 ## Release History
 
-* 0.2.1
-    * CHANGE: Update docs (module code remains unchanged)
-* 0.2.0
-    * CHANGE: Remove `setDefaultXYZ()`
-    * ADD: Add `init()`
-* 0.1.1
-    * FIX: Crash when calling `baz()` (Thanks @GenerousContributorName!)
-* 0.1.0
-    * The first proper release
-    * CHANGE: Rename `foo()` to `bar()`
-* 0.0.1
-    * Work in progress
+* 0.2
+    * CHANGE: Remplacement par le moteur https://github.com/redcode/Z80 ;
+    * CHANGE: Reprise de l'affichage des mnemonics ;
+    * Passe les tests ZEXDOC (presque).
+* 0.1
+    * Premières fonctions BDOS et moteur Z80 perso.
+    * Echec des tests ZEXDOC.
 
 ## Meta
 
-Your Name – [@YourTwitter](https://twitter.com/dbader_org) – YourEmail@example.com
+Marc SIBERT – [@LabAllen91](https://twitter.com/LabAllen91) – contact@dispositifs.fr
 
-Distributed under the XYZ license. See ``LICENSE`` for more information.
+Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/Marcussacapuces91/CPM-Emulator/blob/main/LICENSE) for more information.
 
-[https://github.com/yourname/github-link](https://github.com/dbader/)
+[https://github.com/Marcussacapuces91/CPM-Emulator](https://github.com/Marcussacapuces91/CPM-Emulator)
 
 ## Contributing
 
-1. Fork it (<https://github.com/yourname/yourproject/fork>)
+1. Fork it (<https://github.com/Marcussacapuces91/CPM-Emulator/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
 3. Commit your changes (`git commit -am 'Add some fooBar'`)
 4. Push to the branch (`git push origin feature/fooBar`)
