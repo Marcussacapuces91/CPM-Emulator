@@ -17,9 +17,9 @@ jobs:
       run: git archive --remote=ssh://github.com/simonowen/tilemap.git HEAD Z80-support.h | tar -x
 
 #https://github.com/simonowen/tilemap/blob/master/Z80-support.h
-    - name: import Z80.h
+#    - name: import Z80.h
 
-    - name: import Z80.c
+#    - name: import Z80.c
 
 
 
