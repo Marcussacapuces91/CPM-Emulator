@@ -48,7 +48,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: cpm-windows-x64.exe
-        path: ./sources/cpm
+        path: ./sources/cpm.exe
 
   ubuntu-build:
     needs: windows-build
