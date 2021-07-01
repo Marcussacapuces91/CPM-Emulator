@@ -136,7 +136,7 @@ public:
 		auto fs = std::ifstream(aFile, std::ios_base::binary | std::ios_base::in);
 		fs.exceptions(std::fstream::badbit);
 		if (fs) {
-			std::clog << "Loading " << aFile << "... ";
+//			std::clog << "Loading " << aFile << "... ";
 			auto addr = aAddr;
 			while (fs.good()) {
 				const uint8_t c = fs.get();
@@ -145,7 +145,7 @@ public:
 				}
 			}
 			fs.close();
-			std::clog << addr - aAddr << " bytes read." << std::endl;
+//			std::clog << addr - aAddr << " bytes read." << std::endl;
 		} else {
 			std::cerr << "Error opening file \"" << aFile << "\"" << std::endl;
 			throw std::runtime_error("Error opening file");
@@ -268,24 +268,12 @@ public:
 //					logState(cpu.state);
 					
 					if (cpu.state.Z_Z80_STATE_MEMBER_A != RA) {
-						throw std::runtime_error("Accumulator difference in RLCA!");
+						throw std::runtime_error("Accumulator difference in RLC!");
 					} else if (cpu.state.Z_Z80_STATE_MEMBER_F != RF) {
 						std::clog << std::hex << int(cpu.state.Z_Z80_STATE_MEMBER_F) << " != " << int(RF) << std::endl;
-						throw std::runtime_error("Flags difference in RLCA!");
+						throw std::runtime_error("Flags difference in RLC!");
 					}
 
-/*				
-					logSpecAddr(cpu.state);
-					logInst(cpu.state);
-					logState(cpu.state);
-					
-					std::clog << "Execution: ";
-					const unsigned c = z80_run(&cpu, 1);	// return cycles
-					std::clog << c << " cycles" << std::endl;
-					
-					logState(cpu.state);
-					std::clog << std::endl;
-*/					
 				} else {
 #ifdef LOG				
 					logSpecAddr(cpu.state);
