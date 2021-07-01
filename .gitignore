@@ -39,3 +39,5 @@
 /sources/*.layout
 *.backup
 
+bin/zexdoc.com
+bin/log.txt
