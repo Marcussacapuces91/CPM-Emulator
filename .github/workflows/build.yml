@@ -20,12 +20,12 @@ jobs:
 
     - name: import Z80-support.h @simonowen
       run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
-      if: ${{ contains(os, 'windows') }}
+      if: ${{ contains(matrix.os, 'windows') }}
     - name: import Z80-support.h @simonowen
       uses: wei/wget@v1
       with:
         args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
-      if: ${{ contains(os, 'ubuntu') }}
+      if: ${{ contains(matrix.os, 'ubuntu') }}
 
 
   windows-build:
