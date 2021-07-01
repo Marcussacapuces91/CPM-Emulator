@@ -32,25 +32,21 @@ int main(int argc, char** argv) {
 	std::clog.rdbuf(out.rdbuf());
 #endif
 	
-	computer.init();
-	
-#if 0
-//	computer.load("CPM3FR\\CCP.COM");
-	computer.load("CPM22-b\\CPM.SYS");
 	try {
-		computer.run();
-#else
-	computer.load("zexdoc.com", 0x100);
-	try {
-		computer.run(0x100);
-#endif
-
-	} catch (std::string s) {
-		std::cerr << "Error " << s << std::endl;
-		return 1;
+		computer.init();
+		if (argc == 1) {	// no arg.
+			computer.load("CPM.SYS");
+			computer.run();		
+		} else if (argc == 2) {
+			computer.load(argv[1], 0x100);
+			computer.run(0x100);
+		}
+		return 0;
+/*
 	} catch (std::runtime_error& e) {
 		std::cerr << "Runtime error " << e.what() << std::endl;
 		return 1;
+*/		
 	} catch (std::exception& e) {
 		std::cerr << "Exception " << e.what() << std::endl;
 		return 1;
