@@ -46,5 +46,9 @@ jobs:
     - name: Link CPM
       working-directory: ./sources
       run: g++ main.o bdos.o Z80.o -o cpm -static-libgcc
-        
-
+      
+    - name: Upload package
+      uses: actions/upload-artifact@V2
+      with:
+        name: cpm-ubuntu-x64
+        path: ./sources/cpm
