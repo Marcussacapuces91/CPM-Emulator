@@ -37,12 +37,12 @@ jobs:
       if: ${{ contains(matrix.os, 'ubuntu') }}
 
     - name: Windows import Z80.c @redcode
-      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.c
+      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
       if: ${{ contains(matrix.os, 'windows') }}
     - name: Linux import Z80.c @redcode
       uses: wei/wget@v1
       with:
-        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.c
+        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
       if: ${{ contains(matrix.os, 'ubuntu') }}
 
     - name: Windows Compile & Link
