@@ -5,7 +5,6 @@ on:
     branches: [ $default-branch ]
   pull_request:
     branches: [ $default-branch ]
-  
 # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:	
 
@@ -21,7 +20,7 @@ jobs:
       with:
         args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
 
-  ubuntu-build:
+#  ubuntu-build:
     runs-on: ubuntu-latest
     steps:
     - name: checkout
