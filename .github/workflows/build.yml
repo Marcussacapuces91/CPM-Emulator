@@ -18,92 +18,61 @@ jobs:
     - name: checkout
       uses: actions/checkout@v2
 
-    - name: import Z80-support.h @simonowen
+    - name: Windows import Z80-support.h @simonowen
       run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
       if: ${{ contains(matrix.os, 'windows') }}
-    - name: import Z80-support.h @simonowen
+    - name: Linux import Z80-support.h @simonowen
       uses: wei/wget@v1
       with:
         args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
       if: ${{ contains(matrix.os, 'ubuntu') }}
 
-
-  windows-build:
-    runs-on: windows-latest
-    steps:
-    - name: checkout
-      uses: actions/checkout@v2
-
-    - name: import Z80-support.h @simonowen
-      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
-
-    - name: import Z80.h @redcode
+    - name: Windows import Z80h @redcode
       run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.h
+      if: ${{ contains(matrix.os, 'windows') }}
+    - name: Linux import Z80.h @redcode
+      uses: wei/wget@v1
+      with:
+        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.h
+      if: ${{ contains(matrix.os, 'ubuntu') }}
 
-    - name: import Z80.c @redcode
-      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
+    - name: Windows import Z80.c @redcode
+      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.c
+      if: ${{ contains(matrix.os, 'windows') }}
+    - name: Linux import Z80.c @redcode
+      uses: wei/wget@v1
+      with:
+        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.c
+      if: ${{ contains(matrix.os, 'ubuntu') }}
 
-    - name: Compile main.cpp
+    - name: Windows Compile & Link
       working-directory: ./sources
-      run: g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
-
-    - name: Compile bdos.cpp
-      working-directory: ./sources
-      run: g++ -c bdos.cpp -o bdos.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
-
-    - name: Compile Z80.c
-      working-directory: ./sources
-      run: gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
-
-    - name: Link CPM
-      working-directory: ./sources
-      run: g++ main.o bdos.o Z80.o -o cpm -static -static-libgcc -static-libstdc++
+      run: |
+	    g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+        g++ -c bdos.cpp -o bdos.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+        gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+        g++ main.o bdos.o Z80.o -o cpm -static -static-libgcc -static-libstdc++
+      if: ${{ contains(matrix.os, 'windows') }}
       
-    - name: Upload package
+    - name: Linux Compile & Link
+      working-directory: ./sources
+      run: |
+	    g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
+        g++ -c bdos.cpp -o bdos.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+        gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
+        g++ main.o bdos.o Z80.o -o cpm -static-libgcc
+      if: ${{ contains(matrix.os, 'ubuntu') }}
+
+    - name: Windows Upload package
       uses: actions/upload-artifact@v2
       with:
         name: cpm-windows-x64.exe
         path: ./sources/cpm.exe
-
-  ubuntu-build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: checkout
-      uses: actions/checkout@v2
-
-    - name: import Z80-support.h @simonowen
-      uses: wei/wget@v1
-      with:
-        args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
-
-    - name: import Z80.h @redcode
-      uses: wei/wget@v1
-      with:
-        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.h
-
-    - name: import Z80.c @redcode
-      uses: wei/wget@v1
-      with:
-        args: --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
-
-    - name: Compile main.cpp
-      working-directory: ./sources
-      run: g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
-
-    - name: Compile bdos.cpp
-      working-directory: ./sources
-      run: g++ -c bdos.cpp -o bdos.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
-        
-    - name: Compile Z80.c
-      working-directory: ./sources
-      run: gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
-        
-    - name: Link CPM
-      working-directory: ./sources
-      run: g++ main.o bdos.o Z80.o -o cpm -static-libgcc
+      if: ${{ contains(matrix.os, 'windows') }}
       
-    - name: Upload package
+    - name: Linux Upload package
       uses: actions/upload-artifact@v2
       with:
         name: cpm-ubuntu-x64
         path: ./sources/cpm
+      if: ${{ contains(matrix.os, 'ubuntu') }}
