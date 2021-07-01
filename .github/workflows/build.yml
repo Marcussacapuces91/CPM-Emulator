@@ -41,7 +41,7 @@ jobs:
         
     - name: Compile Z80.c
       working-directory: ./sources
-      run: gcc -c Z80.cpp -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
+      run: gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
         
     - name: Link CPM
       working-directory: ./sources
