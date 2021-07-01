@@ -40,10 +40,6 @@ jobs:
       working-directory: ./sources
       run: g++ main.o bdos.o Z80.o -o cpm -static-libgcc
       
-    - name: dir
-      working-directory: ./sources
-      run: dir
-
     - name: Upload package
       uses: actions/upload-artifact@v2
       with:
@@ -51,7 +47,7 @@ jobs:
         path: ./sources/cpm.exe
 
   ubuntu-build:
-    needs: windows-build
+#    needs: windows-build
     runs-on: ubuntu-latest
     steps:
     - name: checkout
