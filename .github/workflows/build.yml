@@ -20,7 +20,8 @@ jobs:
       with:
         args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
 
-#  ubuntu-build:
+  ubuntu-build:
+    needs: windows-build
     runs-on: ubuntu-latest
     steps:
     - name: checkout
