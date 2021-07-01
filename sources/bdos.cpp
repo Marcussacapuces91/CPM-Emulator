@@ -15,8 +15,11 @@
  */
 
 #include <dirent.h>
+#include <sys/stat.h>
 
 #include "computer.h"
+
+// #define LOG 1
 
 /**
  * BDOS functions.
@@ -145,28 +148,75 @@ void Computer::bdos(ZZ80State& state) {
 #if LOG
 				std::clog << "Select disc to " << char('A' + state.Z_Z80_STATE_MEMBER_E) << std::endl;
 #endif
-				drive = state.Z_Z80_STATE_MEMBER_E;
-				state.Z_Z80_STATE_MEMBER_L = 0;
-				state.Z_Z80_STATE_MEMBER_A = 0;
+				const char dir[2] = { char('A' + state.Z_Z80_STATE_MEMBER_E), '\0' };
+				struct stat st;
+				const int err = stat(dir, &st);
+				if (!err) {
+					drive = state.Z_Z80_STATE_MEMBER_E;
+					state.Z_Z80_STATE_MEMBER_L = 0;
+					state.Z_Z80_STATE_MEMBER_A = 0;
+					break;
+				}
+				state.Z_Z80_STATE_MEMBER_H = errno;
+				std::cout << "Error selecting disk '" << char('A' + state.Z_Z80_STATE_MEMBER_E) << ":' " << strerror(errno) << "!" << std::endl;
 			} else {
-#if LOG
-				std::clog << "Error selecting drive number " << unsigned(state.Z_Z80_STATE_MEMBER_E) << std::endl;
-#endif
-				state.Z_Z80_STATE_MEMBER_L = 0xFF; 
-				state.Z_Z80_STATE_MEMBER_A = 0xFF;
+				std::cout << "Invalid disk [A..P]!" << std::endl;
 			}
+			state.Z_Z80_STATE_MEMBER_L = 0xFF; 
+			state.Z_Z80_STATE_MEMBER_A = 0xFF;
 			break;
 		}
+		
+/**
+ * BDOS function 15 (F_OPEN) - Open file
+ * Supported by: All versions
+ * Entered with C=0Fh, DE=FCB address. Returns error codes in BA and HL.
+ * This function opens a file to read or read/write. The FCB is a 36-byte data structure, most of which is maintained by CP/M. Look here for details.
+ * The FCB should have its DR, Fn and Tn fields filled in, and the four fields EX, S1, S2 and RC set to zero. Under CP/M 3 and later, if CR is set to 0FFh then on return CR will contain the last record byte count. Note that CR should normally be reset to zero if sequential access is to be used.
+ * Under MP/M II, the file is normally opened exclusively - no other process can access it. Two bits in the FCB control the mode the file is opened in:
+ *  * F5' - set to 1 for "unlocked" mode - other programs can use the file.
+ *  * F6' - set to 1 to open the file in read-only mode - other programs can use the file read-only. If both F6' and F5' are set, F6' wins.
+ * If the file is opened in "unlocked" mode, the file's identifier (used for record locking) will be returned at FCB+21h.
+ * Under MP/M II and later versions, a password can be supplied to this function by pointing the DMA address at the password.
+ * On return from this function, A is 0FFh for error, or 0-3 for success. Some versions (including CP/M 3) always return zero; others return 0-3 to indicate that an image of the directory entry is to be found at (80h+20h*A).
+ * If A=0FFh, CP/M 3 returns a hardware error in H and B. It also sets some bits in the FCB:
+ *  * F7' is set if the file is read-only because writing is password protected and no password was supplied;
+ *  * F8' is set if the file is read-only because it is a User 0 system file opened from another user area.
+ */
+		case 0x0F : {
+ 			struct __attribute__ ((packed)) FCB {
+ 				uint8_t DR;
+ 				char filename[8];
+ 				char filetype[3];
+ 				uint8_t EX;
+ 				uint8_t S1;
+ 				uint8_t S2;
+ 				uint8_t RC;
+ 				uint8_t AL;
+ 				uint8_t CR;
+ 				uint16_t RN;
+			};
+			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+
+			std::clog << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
+
+
+
+			exit(1);
+
+			break;
+		 }
+
 
 /**
-* BDOS function 16 (F_CLOSE) - Close file
-* Supported by: All versions
-* Entered with C=10h, DE=FCB address. Returns error codes in BA and HL.
-* This function closes a file, and writes any pending data. This function should always be used when a file has been written to.
-* On return from this function, A is 0FFh for error, or 0-3 for success. Some versions always return zero; others return 0-3 to indicate that an image of the directory entry is to be found at (80h+20h*A).
-* Under CP/M 3, if F5' is set to 1 then the pending data are written and the file is made consistent, but it remains open.
-* If A=0FFh, CP/M 3 returns a hardware error in H and B.
-*/
+ * BDOS function 16 (F_CLOSE) - Close file
+ * Supported by: All versions
+ * Entered with C=10h, DE=FCB address. Returns error codes in BA and HL.
+ * This function closes a file, and writes any pending data. This function should always be used when a file has been written to.
+ * On return from this function, A is 0FFh for error, or 0-3 for success. Some versions always return zero; others return 0-3 to indicate that an image of the directory entry is to be found at (80h+20h*A).
+ * Under CP/M 3, if F5' is set to 1 then the pending data are written and the file is made consistent, but it remains open.
+ * If A=0FFh, CP/M 3 returns a hardware error in H and B.
+ */
 /*
 		case 0x10 : {
 			std::clog << "BDOS - Close file " << std::hex << unsigned(DE) << "h" << std::endl;
@@ -203,11 +253,10 @@ void Computer::bdos(ZZ80State& state) {
 			std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
 //			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
+//			std::cout << filename << std::endl;
 			
-			const std::string dir = std::string("CPM22-b");
-			
-//			if (pDir != NULL) closedir(pDir);
-			pDir = opendir(dir.c_str());
+			const char dir[2] = { char('A' + drive), '\0' };
+			pDir = opendir(dir);
 			if (pDir == NULL) {
 				state.Z_Z80_STATE_MEMBER_A = 0xFF;
 				break;
