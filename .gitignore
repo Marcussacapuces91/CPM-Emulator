@@ -37,3 +37,5 @@
 /sources/Z80*
 /sources/log.txt
 /sources/*.layout
+*.backup
+

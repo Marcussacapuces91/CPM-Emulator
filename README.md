@@ -50,6 +50,7 @@ _For more examples and usage, please refer to the [Wiki][wiki]._
     * [Z80.h](https://github.com/redcode/Z80/blob/master/API/emulation/CPU/Z80.h) et 
     * [Z80.c](https://github.com/redcode/Z80/blob/master/sources/Z80.c).
 
+
 * Ajouter aussi le code, sur la base du commentaire (https://github.com/redcode/Z/issues/3#issuecomment-520175069) pour remplacer la [lib Z](https://github.com/redcode/Z) qui ne compile pas sous GCC :
     * [Z80-support.h](https://github.com/simonowen/tilemap/blob/master/Z80-support.h)
 
@@ -85,6 +86,18 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 3. Commit your changes (`git commit -am 'Add some fooBar'`)
 4. Push to the branch (`git push origin feature/fooBar`)
 5. Create a new Pull Request
+
+## References
+
+* https://github.com/joelang/z80-sbc: Source code of [cpm22.lst](https://raw.githubusercontent.com/joelang/z80-sbc/master/cpm22.lst)
+* BDOS functions & explanations: http://seasip.info/Cpm/bdos.html
+* CP/M FCB: http://seasip.info/Cpm/fcb.html
+* Z80 Instruction Exerciser: http://mdfs.net/Software/Z80/Exerciser/
+* Z80 Flags Affection: http://www.z80.info/z80sflag.htm
+* Z80 instruction set: https://clrhome.org/table/
+* 
+
+
 
 <!-- Markdown link & img dfn's -->
 [npm-image]: https://img.shields.io/npm/v/datadog-metrics.svg?style=flat-square
