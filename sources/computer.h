@@ -30,8 +30,6 @@
 #define S_(x) S(x)
 #define S__LINE__ S_(__LINE__)
 
-#define LOG		1
-
 /**
  * @see http://www.cpm.z80.de/manuals/cpm22-m.pdf
  *

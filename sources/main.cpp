@@ -18,15 +18,19 @@
 #include <fstream>
 #include <exception>
 
+#define LOG		1
+
 #include "computer.h"
 
 Computer computer;
 
 int main(int argc, char** argv) {
 	
+#ifdef LOG
 	std::ofstream out("log.txt");
 	auto old_rdbuf = std::clog.rdbuf();
 	std::clog.rdbuf(out.rdbuf());
+#endif
 	
 	computer.init();
 	
@@ -36,7 +40,7 @@ int main(int argc, char** argv) {
 	try {
 		computer.run();
 #else
-	computer.load("xzexdoc.com", 0x100);
+	computer.load("zexdoc.com", 0x100);
 	try {
 		computer.run(0x100);
 #endif
