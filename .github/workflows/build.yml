@@ -17,6 +17,16 @@ jobs:
 
     - name: import Z80-support.h @simonowen
       run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
+
+    - name: import Z80-support.h @simonowen
+      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/API/emulation/CPU/Z80.h
+
+    - name: import Z80-support.h @simonowen
+      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
+
+    - name: dir
+      working-directory: ./sources
+      run: dir
       
 
   ubuntu-build:
