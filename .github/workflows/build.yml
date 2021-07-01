@@ -28,9 +28,27 @@ jobs:
       working-directory: ./sources
       run: g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
 
+    - name: Compile bdos.cpp
+      working-directory: ./sources
+      run: g++ -c bdos.cpp -o bdos.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+
+    - name: Compile Z80.c
+      working-directory: ./sources
+      run: gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+
+    - name: Link CPM
+      working-directory: ./sources
+      run: g++ main.o bdos.o Z80.o -o cpm -static-libgcc
+      
     - name: dir
       working-directory: ./sources
       run: dir
+
+    - name: Upload package
+      uses: actions/upload-artifact@v2
+      with:
+        name: cpm-windows-x64.exe
+        path: ./sources/cpm
 
   ubuntu-build:
     needs: windows-build
