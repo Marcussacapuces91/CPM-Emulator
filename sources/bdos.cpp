@@ -72,51 +72,50 @@ void Computer::bdos(ZZ80State& state) {
 		 }
 		
 /**
-* BDOS function 10 (C_READSTR) - Buffered console input
-* Supported by: All versions, with variations
-* Entered with C=0Ah, DE=address or zero.
-* This function reads characters from the keyboard into a memory buffer until RETURN is pressed. The Delete key is handled correctly. In later versions, more features can be used at this point; ZPM3 includes a full line editor with recall of previous lines typed.
-* On entry, DE is the address of a buffer. If DE=0 (in CP/M-86 versions DX=0FFFFh), the DMA address is used (CP/M 3 and later) and the buffer already contains data:
-* DE=address:                 DE=0 / DX=0FFFFh:
-* buffer: DEFB    size        buffer: DEFB    size
-*         DEFB    ?                   DEFB    len
-*         DEFB    bytes               DEFB    bytes
-* The value at buffer+0 is the amount of bytes available in the buffer. Once the limit has been reached, no more can be added, although the line editor can still be used.
-* If DE=0 (in 16-bit versions, DX=0FFFFh) the next byte contains the number of bytes already in the buffer; otherwise this is ignored. On return from the function, it contains the number of bytes present in the buffer.
-* The bytes typed then follow. There is no end marker.
+ * BDOS function 10 (C_READSTR) - Buffered console input
+ * Supported by: All versions, with variations
+ * Entered with C=0Ah, DE=address or zero.
+ * This function reads characters from the keyboard into a memory buffer until RETURN is pressed. The Delete key is handled correctly. In later versions, more features can be used at this point; ZPM3 includes a full line editor with recall of previous lines typed.
+ * On entry, DE is the address of a buffer. If DE=0 (in CP/M-86 versions DX=0FFFFh), the DMA address is used (CP/M 3 and later) and the buffer already contains data:
+ * DE=address:                 DE=0 / DX=0FFFFh:
+ * buffer: DEFB    size        buffer: DEFB    size
+ *         DEFB    ?                   DEFB    len
+ *         DEFB    bytes               DEFB    bytes
+ * The value at buffer+0 is the amount of bytes available in the buffer. Once the limit has been reached, no more can be added, although the line editor can still be used.
+ * If DE=0 (in 16-bit versions, DX=0FFFFh) the next byte contains the number of bytes already in the buffer; otherwise this is ignored. On return from the function, it contains the number of bytes present in the buffer.
+ * The bytes typed then follow. There is no end marker.
+ */
 
 		case 0x0A : {
 #if LOG
-			std::clog << "Buffered console input (Buffer " << std::hex << DE << "h)" << std::endl;
+			std::clog << "Buffered console input (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 //			std::clog << "mx" << unsigned(memory[DE+0]) << std::endl;
 //			std::clog << "nc" << unsigned(memory[DE+1]) << std::endl;
 #endif			
 			std::string line;
 			std::cin >> line;
-			memory[DE+1] = line.length();
+			memory[state.Z_Z80_STATE_MEMBER_DE + 1] = line.length();
 			for (unsigned i = 0; i < line.length(); ++i) {
-				memory[DE+2 + i] = line[i];
+				memory[state.Z_Z80_STATE_MEMBER_DE + 2 + i] = line[i];
 			}
 //			memory[DE+2 + line.length()] = 0;
 			
 			break;
 		 }
-*/
 
 /**
  * BDOS function 11 (C_STAT) - Console status
  * Supported by: All versions
  * Entered with C=0Bh. Returns A=L=status
  * Returns A=0 if no characters are waiting, nonzero if a character is waiting.
-
+ */
 		case 0x0B : {
 #if LOG
 			std::clog << "Console status - always ok" << std::endl;
 #endif
-			A = 0;
+			state.Z_Z80_STATE_MEMBER_A = 0;
 			break;
 		}
-*/
 
 /**
  * BDOS function 13 (DRV_ALLRESET) - Reset discs
@@ -184,7 +183,7 @@ void Computer::bdos(ZZ80State& state) {
  * Search for the first occurrence of the specified file; the filename should be stored in the supplied FCB. The filename can include ? marks, which match anything on disc. If the first byte of the FCB is ?, then any directory entry (including disc labels, date stamps etc.) will match. The EX byte is also checked; normally it should be set to zero, but if it is set to ? then all suitable extents are matched.
  * Returns A=0FFh if error (CP/M 3 returns a hardware error in H and B), or A=0-3 if successful. The value returned can be used to calculate the address of a memory image of the directory entry; it is to be found at DMA+A*32.
  * Under CP/M-86 v4, if the first byte of the FCB is '?' or bit 7 of the byte is set, subdirectories as well as files will be returned by this search.
-
+ */
  		case 0x11 : {
  			struct __attribute__ ((packed)) FCB {
  				uint8_t DR;
@@ -199,21 +198,18 @@ void Computer::bdos(ZZ80State& state) {
  				uint16_t RN;
 			 };
 			 
-//			FCB*const pFCB = (FCB*const)(memory + DE);
-			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + DE);
-
+			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
-			std::clog << "Search for first (FCB: " << std::hex << unsigned(DE) << "h)" << std::endl;
+			std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-			
-			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
+//			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
 			
 			const std::string dir = std::string("CPM22-b");
 			
 //			if (pDir != NULL) closedir(pDir);
 			pDir = opendir(dir.c_str());
 			if (pDir == NULL) {
-				A = 0xFF;
+				state.Z_Z80_STATE_MEMBER_A = 0xFF;
 				break;
 			}
 			struct dirent* pEnt = NULL;
@@ -222,30 +218,20 @@ void Computer::bdos(ZZ80State& state) {
 			} while ( (pEnt != NULL) && ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) );
 
 			if (pEnt == NULL) {
-				A = 0xFF;
+				state.Z_Z80_STATE_MEMBER_A = 0xFF;
 				break;
 			}
-
-			std::string name = pEnt->d_name;
-			name = name.append("$");
-			while (name.length() < 30) name = name.append(" ");
-			for (int i = 0; i < name.length() ; ++i) {
-				memory[dma+i] = name[i];
+			memory[dma] = '\0';
+			memset(memory + dma + 1, ' ', 11);
+			const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
+			for (int i = 0; i < p; ++i) {
+				memory[dma+i+1] = pEnt->d_name[i];
 			}
-
-/*
-			const int pt = name.find(".");
+			for (int i = 0; i < 3; ++i) {
+				memory[dma+9+i] = pEnt->d_name[p+i+1];
+			}
 			
-			memset(pFCB->filename, ' ', 8);
-			memset(pFCB->filetype, ' ', 3);
-			strncpy(pFCB->filename, name.substr(0, pt).c_str(), 8);
-			for (int i = 0; i < 8; ++i) if (!pFCB->filename[i]) pFCB->filename[i] = ' ';
-			strncpy(pFCB->filetype, name.substr(pt+1).c_str(), 3);
-			for (int i = 0; i < 3; ++i) if (!pFCB->filetype[i]) pFCB->filetype[i] = ' ';
-			std::clog << pFCB->filename << '.' << pFCB->filetype << std::endl;
-*/			
-/*
-			A = 0;	// OK
+			state.Z_Z80_STATE_MEMBER_A = 0;	// OK
 			break;
 		}
 
@@ -256,7 +242,7 @@ void Computer::bdos(ZZ80State& state) {
  * This function should only be executed immediately after function 17 or another invocation of function 18. No other disc access functions should have been used.
  * Function 18 behaves exactly as number 17, but finds the next occurrence of the specified file after the one returned last time. The FCB parameter is not documented, but Jim Lopushinsky states in LD301.DOC:
  * In none of the official Programmer's Guides for any version of CP/M does it say that an FCB is required for Search Next (function 18). However, if the FCB passed to Search First contains an unambiguous file reference (i.e. no question marks), then the Search Next function requires an FCB passed in reg DE (for CP/M-80) or DX (for CP/M-86).
-
+ */
  		case 0x12 : {
  			struct FCB {
  				uint8_t DR;
@@ -271,43 +257,33 @@ void Computer::bdos(ZZ80State& state) {
  				uint16_t RN;
 			 };
 			 
-//			FCB*const pFCB = (FCB*const)(memory + DE);
-			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + DE);
-
+			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
-			std::clog << "Search for next (FCB: " << std::hex << unsigned(DE) << "h)" << std::endl;
+			std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-			
-			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
-			
-			const std::string dir = std::string("CPM22-b");
-			
+//			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
+//			const std::string dir = std::string("CPM22-b");
 			if (pDir == NULL) {
-				A = 0xFF;
+				state.Z_Z80_STATE_MEMBER_A = 0xFF;
 				break;
 			}
 
 			struct dirent *const pEnt = readdir(pDir);
 			if (pEnt == NULL) {
-				A = 0xFF;
+				state.Z_Z80_STATE_MEMBER_A = 0xFF;
 				break;
 			}
-			const std::string name = pEnt->d_name;
-			strncpy((char*)&memory[dma], name.c_str(), 32);
-
-/*
-			const int pt = name.find(".");
+			memory[dma] = '\0';
+			memset(memory + dma + 1, ' ', 11);
+			const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
+			for (int i = 0; i < p; ++i) {
+				memory[dma+i+1] = pEnt->d_name[i];
+			}
+			for (int i = 0; i < strlen(pEnt->d_name) - p - 1; ++i) {
+				memory[dma+9+i] = pEnt->d_name[p+i+1];
+			}
 			
-			memset(pFCB->filename, ' ', 8);
-			memset(pFCB->filetype, ' ', 3);
-			strncpy(pFCB->filename, name.substr(0, pt).c_str(), 8);
-			for (int i = 0; i < 8; ++i) if (!pFCB->filename[i]) pFCB->filename[i] = ' ';
-			strncpy(pFCB->filetype, name.substr(pt+1).c_str(), 3);
-			for (int i = 0; i < 3; ++i) if (!pFCB->filetype[i]) pFCB->filetype[i] = ' ';
-			std::clog << pFCB->filename << '.' << pFCB->filetype << std::endl;
-*/
-/*
-			A = 0;
+			state.Z_Z80_STATE_MEMBER_A = 0;	// OK
 			break;
 		}
 
@@ -315,12 +291,12 @@ void Computer::bdos(ZZ80State& state) {
  * BDOS function 25 (DRV_GET) - Return current drive
  * Supported by: All versions
  * Entered with C=19h. Returns drive in A. Returns currently selected drive. 0 => A:, 1 => B: etc.
-
+ */
 		case 0x19 : {
 #if LOG
 			std::clog << "Get drive (" << drive << ')' << std::endl;
 #endif
-			A = drive;
+			state.Z_Z80_STATE_MEMBER_A = drive;
 			break;
 		}
 
@@ -329,12 +305,12 @@ void Computer::bdos(ZZ80State& state) {
  * Supported by: All versions
  * Entered with C=1Ah, DE=address.
  * Set the Direct Memory Access address; a pointer to where CP/M should read or write data. Initially used for the transfer of 128-byte records between memory and disc, but over the years has gained many more functions.
-
+ */
 		case 0x1A : {
 #if LOG
-			std::clog << "Set DMA address  (" << std::hex << DE << ')' << std::endl;
+			std::clog << "Set DMA address  (" << std::hex << state.Z_Z80_STATE_MEMBER_DE << ')' << std::endl;
 #endif
-			dma = DE;
+			dma = state.Z_Z80_STATE_MEMBER_DE;
 			break;
 		}
 		
@@ -364,7 +340,7 @@ void Computer::bdos(ZZ80State& state) {
 			std::cerr << "Register C: " << std::hex << std::setw(2) << std::setfill('0') << unsigned(state.Z_Z80_STATE_MEMBER_C) << "h";
 			std::cerr << " : Unknown BDOS function!" << std::endl;
 			
-			throw(std::string("No emulated BDOS function"));
+			throw std::runtime_error("Un-emulated BDOS function");
 			break;
 	}
 }
