@@ -18,7 +18,7 @@
 #include <fstream>
 #include <exception>
 
-#define LOG		1
+// #define LOG		1
 
 #include "computer.h"
 
