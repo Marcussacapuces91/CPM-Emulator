@@ -16,9 +16,8 @@ jobs:
       uses: actions/checkout@v2
 
     - name: import Z80-support.h @simonowen
-      uses: wei/wget@v1
-      with:
-        args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
+      run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
+      
 
   ubuntu-build:
     needs: windows-build
