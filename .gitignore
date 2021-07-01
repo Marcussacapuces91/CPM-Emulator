@@ -31,14 +31,8 @@
 *.out
 *.app
 
-/sources/CPM*/
-/sources/CPM.SYS
-/sources/zex*.*
+bin/
 /sources/Makefile.win
 /sources/Z80*
-/sources/log.txt
 /sources/*.layout
 *.backup
-
-bin/zexdoc.com
-bin/log.txt
