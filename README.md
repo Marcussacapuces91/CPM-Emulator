@@ -1,6 +1,6 @@
 # CPM-Emulator
 
-[![License][license-image]][license-url] [![Build](https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/c-cpp.yml)
+[![License][license-image]][license-url] [![Build C/C++ code](https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml/badge.svg)](https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml)
 
 > Yet another Z80 Computer with CP/M capabilities (no BIOS, emulated BDOS, executed CP/M)
 
