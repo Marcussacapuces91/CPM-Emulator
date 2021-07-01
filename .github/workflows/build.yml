@@ -36,7 +36,7 @@ jobs:
       working-directory: ./sources
       run: |
         ls -al
-        g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H="Z80-support.h" -D CPU_Z80_HIDE_ABI
+        g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
         
 
     # Runs a set of commands using the runners shell
