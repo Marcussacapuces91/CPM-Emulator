@@ -18,8 +18,9 @@ jobs:
 
     - name: import Z80-support.h @simonowen
       uses: wei/wget@v1
+      working-directory: ./sources
       with:
-        args: --directory-prefix=sources/ https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
+        args: https://raw.githubusercontent.com/simonowen/tilemap/master/Z80-support.h
 
     - name: import Z80.h @redcode
       uses: wei/wget@v1
