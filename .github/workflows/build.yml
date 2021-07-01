@@ -24,10 +24,13 @@ jobs:
     - name: import Z80-support.h @simonowen
       run: C:\msys64\usr\bin\wget.exe --directory-prefix=sources/ https://raw.githubusercontent.com/redcode/Z80/master/sources/Z80.c
 
+    - name: Compile main.cpp
+      working-directory: ./sources
+      run: g++ -c main.cpp -o main.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
+
     - name: dir
       working-directory: ./sources
       run: dir
-      
 
   ubuntu-build:
     needs: windows-build
