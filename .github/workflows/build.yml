@@ -1,4 +1,4 @@
-name: Build C/C++ code
+name: Build Windows & Ubuntu binaries from C/C++ sources
 
 on:
   push:
