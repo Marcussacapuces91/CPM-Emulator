@@ -1115,10 +1115,26 @@ protected:
 	}	
 	
 private:
+/**
+ * BIAS value is more or less the last free address for programs.
+ */
 	static constexpr uint16_t BIAS = 0xA800;			// 64k -> B000
+	
+/**
+ * Full memory size (can't by over 64Ko)
+ */	
 	static constexpr uint16_t MEMORY_SIZE = 62;	// Ko
 	
+/**
+ * Z80 processor 
+ * Zilog Z80 CPU Emulator
+ * Copyright (C) 1999-2018 Manuel Sainz de Baranda y Goñi.
+ */
 	Z80 cpu;
+	
+/**
+ * Memory container.
+ */	
 	uint8_t memory[MEMORY_SIZE * 1024];
 };
 
