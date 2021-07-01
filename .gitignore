@@ -32,6 +32,7 @@
 *.app
 
 /sources/CPM*/
+/sources/CPM.SYS
 /sources/zex*.*
 /sources/Makefile.win
 /sources/Z80*
