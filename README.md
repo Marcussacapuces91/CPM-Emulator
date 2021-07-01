@@ -37,9 +37,32 @@ edit autoexec.bat
 
 ## Usage example
 
+### Start emulator & load CP/M (as default)
+```sh
+$ cpm 
+```
+
+### Start emulator, load & run zexdoc.com file
+```sh
+$ cpm zexdoc.com
+
+Zilog Z80 CPU Emulator
+Copyright (c) 1999-2018 Manuel Sainz de Baranda y Goni.
+Released under the terms of the GNU General Public License v3.
+
+CPM 2.2 Emulator - Copyright (c) 2021 by M. Sibert
+
+Z80doc instruction exerciser
+<adc,sbc> hl,<bc,de,hl,sp>....
+
+```
+
+
+<!--
 A few motivating and useful examples of how your product can be used. Spice this up with code blocks and potentially more screenshots.
 
 _For more examples and usage, please refer to the [Wiki][wiki]._
+-->
 
 ## Development setup
 
@@ -95,9 +118,6 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 * Z80 Instruction Exerciser: http://mdfs.net/Software/Z80/Exerciser/
 * Z80 Flags Affection: http://www.z80.info/z80sflag.htm
 * Z80 instruction set: https://clrhome.org/table/
-* 
-
-
 
 <!-- Markdown link & img dfn's -->
 [npm-image]: https://img.shields.io/npm/v/datadog-metrics.svg?style=flat-square
