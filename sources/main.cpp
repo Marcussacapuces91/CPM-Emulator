@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 	try {
 		computer.run();
 #else
-	computer.load("zexdoc.com", 0x100);
+	computer.load("xzexdoc.com", 0x100);
 	try {
 		computer.run(0x100);
 #endif

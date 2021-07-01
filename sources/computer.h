@@ -132,29 +132,26 @@ public:
 		cpu.state.Z_Z80_STATE_MEMBER_C = 0;	// Default user 0xF0 & Default disk 0x0F
 	}
 		
-	int load(const std::string& aFile, const uint16_t aAddr=0x3400 + BIAS) {
+	void load(const std::string& aFile, const uint16_t aAddr=0x3400 + BIAS) {
 		assert((!aFile.empty()));
 		
 		auto fs = std::ifstream(aFile, std::ios_base::binary | std::ios_base::in);
-		try {
-			fs.exceptions(std::fstream::badbit);
-		} catch (std::ifstream::failure& e) {
-			std::cerr << "Error opening file \"" << aFile << "\": " << e.what() << "!" << std::endl;
-			return -1;
-		}
-	
-		std::clog << "Loading " << aFile << "... ";
-		auto addr = aAddr;
-		
-		while (fs.good()) {
-			const uint8_t c = fs.get();
-			if (!fs.eof()) {
-				memory[addr++] = c;
+		fs.exceptions(std::fstream::badbit);
+		if (fs) {
+			std::clog << "Loading " << aFile << "... ";
+			auto addr = aAddr;
+			while (fs.good()) {
+				const uint8_t c = fs.get();
+				if (!fs.eof()) {
+					memory[addr++] = c;
+				}
 			}
+			fs.close();
+			std::clog << addr - aAddr << " bytes read." << std::endl;
+		} else {
+			std::cerr << "Error opening file \"" << aFile << "\"" << std::endl;
+			throw std::runtime_error("Error opening file");
 		}
-		fs.close();
-		std::clog << addr - aAddr << " bytes read." << std::endl;
-		return 0;
 	}
 	
 	void run(const uint16_t aAddr=0x3400 + BIAS) {
