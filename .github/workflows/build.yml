@@ -38,7 +38,7 @@ jobs:
 
     - name: Link CPM
       working-directory: ./sources
-      run: g++ main.o bdos.o Z80.o -o cpm -static-libgcc
+      run: g++ main.o bdos.o Z80.o -o cpm -static-libgcc -static-libstdc++
       
     - name: Upload package
       uses: actions/upload-artifact@v2
