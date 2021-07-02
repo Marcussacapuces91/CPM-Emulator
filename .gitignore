@@ -37,3 +37,4 @@ bin/
 /sources/*.layout
 *.backup
 soul_of_cp-m.pdf
+sources/log.txt
