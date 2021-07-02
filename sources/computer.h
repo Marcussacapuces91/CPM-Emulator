@@ -281,6 +281,8 @@ protected:
 				std::clog << std::endl;
 				break;
 */
+			case 0xE054 : std::clog << std::hex << std::setw(4) << addr << " ;  Check drive specified. If it means a change, then the new drive will be selected. In any case, the drive byte of the fcb will be set to null (means use current drive)." << std::endl; break;
+			case 0xE066 : std::clog << std::hex << std::setw(4) << addr << " ;  Check the drive selection and reset it to the previous drive if it was changed for the preceeding command." << std::endl; break;
 			case 0xE077 : std::clog << std::hex << std::setw(4) << addr << " ; D I R E C T O R Y   C O M M A N D" << std::endl; break;
 			case 0xE210 : std::clog << std::hex << std::setw(4) << addr << " ; R E N A M E   C O M M A N D" << std::endl; break;
 			case 0xE28E : std::clog << std::hex << std::setw(4) << addr << " ; U S E R   C O M M A N D" << std::endl; break;
