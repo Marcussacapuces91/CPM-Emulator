@@ -197,12 +197,9 @@ void Computer::bdos(ZZ80State& state) {
  				uint16_t RN;
 			};
 			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 
 			std::clog << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
-
-
-
-			exit(1);
 
 			break;
 		 }
@@ -247,7 +244,6 @@ void Computer::bdos(ZZ80State& state) {
  				uint8_t CR;
  				uint16_t RN;
 			 };
-			 
 			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 			std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
@@ -333,6 +329,42 @@ void Computer::bdos(ZZ80State& state) {
 			}
 			
 			state.Z_Z80_STATE_MEMBER_A = 0;	// OK
+			break;
+		}
+
+/**
+ * BDOS function 20 (F_READ) - read next record
+ * Entered with C=14h, DE=address of FCB. Returns error codes in BA and HL.
+ * Supported by: All versions
+ * Load a record (normally 128 bytes, but under CP/M 3 this can be a multiple of 128 bytes) at the previously specified DMA address. Values returned in A are:
+ *   0 OK,
+ *   1 end of file,
+ *   9 invalid FCB,
+ *  10 (CP/M) media changed; (MP/M) FCB checksum error,
+ *  11 (MP/M) unlocked file verification error,
+ *  0FFh hardware error.
+ * If on return A is not 0FFh, H contains the number of 128-byte records read before the error (MP/M II and later).
+ */
+		case 0x14 : {
+ 			struct FCB {
+ 				uint8_t DR;
+ 				char filename[8];
+ 				char filetype[3];
+ 				uint8_t EX;
+ 				uint8_t S1;
+ 				uint8_t S2;
+ 				uint8_t RC;
+ 				uint8_t AL;
+ 				uint8_t CR;
+ 				uint16_t RN;
+			};
+			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+
+#if LOG
+			std::clog << "Read next record" << std::endl;
+#endif
+			state.Z_Z80_STATE_MEMBER_A = 1;
 			break;
 		}
 
