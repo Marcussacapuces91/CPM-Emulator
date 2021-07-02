@@ -118,6 +118,7 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 * Z80 Instruction Exerciser: http://mdfs.net/Software/Z80/Exerciser/
 * Z80 Flags Affection: http://www.z80.info/z80sflag.htm
 * Z80 instruction set: https://clrhome.org/table/
+* Soul of CP/M, Mitchell Waite & Robert Lafore https://datassette.nyc3.cdn.digitaloceanspaces.com/livros/soul_of_cp-m.pdf
 
 <!-- Markdown link & img dfn's -->
 [npm-image]: https://img.shields.io/npm/v/datadog-metrics.svg?style=flat-square
