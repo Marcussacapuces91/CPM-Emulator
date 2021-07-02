@@ -257,23 +257,23 @@ protected:
 	void logSpecAddr(const ZZ80State& state) const {
 		const uint16_t addr = state.Z_Z80_STATE_MEMBER_PC;
 		switch (addr) {
-			case 0x0005 : std::clog << std::hex << std::setw(4) << addr << "\t; BDOS function #" << std::dec << int(state.Z_Z80_STATE_MEMBER_C) << " - "; break;
-			case 0xDC8C : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Print" << std::endl; break;
+			case 0x0005 : std::clog << std::hex << std::setw(4) << addr << " ; BDOS function #" << std::dec << int(state.Z_Z80_STATE_MEMBER_C) << " - "; break;
+			case 0xDC8C : std::clog << std::hex << std::setw(4) << addr << " ; Routine Print" << std::endl; break;
 //			case 0xDC92 : std::clog << "; Routine Print / save BC" << std::endl; break;
 //			case 0xDC98 : std::clog << "; Routine Print CR/LF" << std::endl; break;
 //			case 0xDCA2 : std::clog << "; Routine Print Space" << std::endl; break;
 //			case 0xDCA7 : std::clog << "; Routine Print Line" << std::endl; break;
-			case 0xDCB8 : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Reset disk" << std::endl; break;
-			case 0xDCBD : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Select disk" << std::endl; break;
-			case 0xDCC3 : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Call bdos & save return" << std::endl; break;
-			case 0xDCCB : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Open file (DE) point FCB" << std::endl; break;
-			case 0xDDA7 : std::clog << std::hex << std::setw(4) << addr << "\t; Convert input line to upper case." << std::endl; break;
-			case 0xDE09 : std::clog << std::hex << std::setw(4) << addr << "\t; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
+			case 0xDCB8 : std::clog << std::hex << std::setw(4) << addr << " ; Routine Reset disk" << std::endl; break;
+			case 0xDCBD : std::clog << std::hex << std::setw(4) << addr << " ; Routine Select disk" << std::endl; break;
+			case 0xDCC3 : std::clog << std::hex << std::setw(4) << addr << " ; Routine Call bdos & save return" << std::endl; break;
+			case 0xDCCB : std::clog << std::hex << std::setw(4) << addr << " ; Routine Open file (DE) point FCB" << std::endl; break;
+			case 0xDDA7 : std::clog << std::hex << std::setw(4) << addr << " ; Convert input line to upper case." << std::endl; break;
+			case 0xDE09 : std::clog << std::hex << std::setw(4) << addr << " ; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
 //			case 0xDE30 : std::clog << "; Check character at (DE) for legal command input. Note that the zero flag is set if the character is a delimiter." << std::endl; break;
-			case 0xDE5E : std::clog << std::hex << std::setw(4) << addr << "\t; Convert the first name in (FCB)." << std::endl; break;
-			case 0xDEFE : std::clog << std::hex << std::setw(4) << addr << "\t; Check to see if this is an ambigeous file name specification." << std::endl; break;
-			case 0xDF2E : std::clog << std::hex << std::setw(4) << addr << "\t; Search the command table for a match with what has just been entered." << std::endl; break;
-			case 0xDF5C : std::clog << std::hex << std::setw(4) << addr << "\t; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
+			case 0xDE5E : std::clog << std::hex << std::setw(4) << addr << " ; Convert the first name in (FCB)." << std::endl; break;
+			case 0xDEFE : std::clog << std::hex << std::setw(4) << addr << " ; Check to see if this is an ambigeous file name specification." << std::endl; break;
+			case 0xDF2E : std::clog << std::hex << std::setw(4) << addr << " ; Search the command table for a match with what has just been entered." << std::endl; break;
+			case 0xDF5C : std::clog << std::hex << std::setw(4) << addr << " ; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
 /*			case 0xdfc0 : 
 				for (unsigned i = 0xDFC1; i <= 0xDFCF; ++i) {
 					std::clog << std::hex << std::setw(2) << int(memory[i])<< " ";
@@ -281,10 +281,10 @@ protected:
 				std::clog << std::endl;
 				break;
 */
-			case 0xE077 : std::clog << std::hex << std::setw(4) << addr << "\t; D I R E C T O R Y   C O M M A N D" << std::endl; break;
-			case 0xE210 : std::clog << std::hex << std::setw(4) << addr << "\t; R E N A M E   C O M M A N D" << std::endl; break;
-			case 0xE28E : std::clog << std::hex << std::setw(4) << addr << "\t; U S E R   C O M M A N D" << std::endl; break;
-			case 0xE2A5 : std::clog << std::hex << std::setw(4) << addr << "\t; T R A N S I A N T   P R O G R A M   C O M M A N D" << std::endl; break;
+			case 0xE077 : std::clog << std::hex << std::setw(4) << addr << " ; D I R E C T O R Y   C O M M A N D" << std::endl; break;
+			case 0xE210 : std::clog << std::hex << std::setw(4) << addr << " ; R E N A M E   C O M M A N D" << std::endl; break;
+			case 0xE28E : std::clog << std::hex << std::setw(4) << addr << " ; U S E R   C O M M A N D" << std::endl; break;
+			case 0xE2A5 : std::clog << std::hex << std::setw(4) << addr << " ; T R A N S I A N T   P R O G R A M   C O M M A N D" << std::endl; break;
 
 // Pour zexdoc.com
 			case 0x1dce : std::clog << "; PUSHs, call BDOS, POPs" << std::endl; break;
