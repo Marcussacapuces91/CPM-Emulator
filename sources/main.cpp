@@ -35,18 +35,13 @@ int main(int argc, char** argv) {
 	try {
 		computer.init();
 		if (argc == 1) {	// no arg.
-			computer.load("CPM.SYS");
-			computer.run();		
+			computer.load("CPM.SYS", 0x3400 + Computer::BIAS);
+			computer.run(0x3400 + Computer::BIAS);		
 		} else if (argc == 2) {
-			computer.load(argv[1], 0x100);
-			computer.run(0x100);
+			computer.load(argv[1]);
+			computer.run();
 		}
 		return 0;
-/*
-	} catch (std::runtime_error& e) {
-		std::cerr << "Runtime error " << e.what() << std::endl;
-		return 1;
-*/		
 	} catch (std::exception& e) {
 		std::cerr << "Exception " << e.what() << std::endl;
 		return 1;
