@@ -22,6 +22,49 @@
 // #define LOG 1
 
 /**
+ * CP/M File Control Block
+ * The File Control Block is a 36-byte data structure (33 bytes in CP/M 1).
+ * ---
+ * CR = current record,   ie (file pointer % 16384)  / 128
+ * EX = current extent,   ie (file pointer % 524288) / 16384
+ * S2 = extent high byte, ie (file pointer / 524288). The CP/M Plus source code refers to this use of the S2 byte as 'module number'.
+ */
+struct __attribute__ ((packed)) FCB_t {
+// Drive. 0 for default, 1-16 for A-P. 
+	uint8_t DR;
+/**
+ * Filename, 7-bit ASCII. The top bits of the filename bytes (usually referred to as F1' to F8') have the following meanings:
+ *   F1'-F4' - User-defined attributes. Any program can use them in any way it likes. The filename in the disc directory has the corresponding bits set.
+ *   F5'-F8' - Interface attributes. They modify the behaviour of various BDOS functions or indicate error conditions. In the directory these bits are always zero.
+ */                        
+	char filename[8];
+/**
+ * Filetype, 7-bit ASCII. T1' to T3' have the following meanings:
+ *   T1' - Read-Only. 
+ *   T2' - System (hidden). System files in user 0 can be opened from other user areas.
+ *   T3' - Archive. Set if the file has not been changed since it was last copied.
+ */					
+	char filetype[3];
+// Set this to 0 when opening a file and then leave it to CP/M. You can rewind a file by setting EX, RC, S2 and CR to 0. 
+	uint8_t EX;
+// Reserved.
+	uint8_t S1;
+// Reserved.
+	uint8_t S2;
+// Set this to 0 when opening a file and then leave it to CP/M.
+	uint8_t RC;
+// Image of the second half of the directory entry, containing the file's allocation (which disc blocks it owns).
+	uint8_t AL;
+// Current record within extent. It is usually best to set this to 0 immediately after a file has been opened and then ignore it.
+	uint8_t CR;
+// Random access record number (not CP/M 1). A 16-bit value in CP/M 2 (with R2 used for overflow); an 18-bit value in CP/M 3.
+	uint16_t RN;
+};
+
+
+
+
+/**
  * BDOS functions.
  * C register contains the function value.
  * @see http://www.gaby.de/cpm/manuals/archive/cpm22htm/ch5.htm
@@ -88,7 +131,6 @@ void Computer::bdos(ZZ80State& state) {
  * If DE=0 (in 16-bit versions, DX=0FFFFh) the next byte contains the number of bytes already in the buffer; otherwise this is ignored. On return from the function, it contains the number of bytes present in the buffer.
  * The bytes typed then follow. There is no end marker.
  */
-
 		case 0x0A : {
 #if LOG
 			std::clog << "Buffered console input (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
@@ -160,7 +202,7 @@ void Computer::bdos(ZZ80State& state) {
 				state.Z_Z80_STATE_MEMBER_H = errno;
 				std::cout << "Error selecting disk '" << char('A' + state.Z_Z80_STATE_MEMBER_E) << ":' " << strerror(errno) << "!" << std::endl;
 			} else {
-				std::cout << "Invalid disk [A..P]!" << std::endl;
+				std::cout << "Invalid disk (A-P only)!" << std::endl;
 			}
 			state.Z_Z80_STATE_MEMBER_L = 0xFF; 
 			state.Z_Z80_STATE_MEMBER_A = 0xFF;
@@ -183,27 +225,16 @@ void Computer::bdos(ZZ80State& state) {
  *  * F7' is set if the file is read-only because writing is password protected and no password was supplied;
  *  * F8' is set if the file is read-only because it is a User 0 system file opened from another user area.
  */
+ /*
 		case 0x0F : {
- 			struct __attribute__ ((packed)) FCB {
- 				uint8_t DR;
- 				char filename[8];
- 				char filetype[3];
- 				uint8_t EX;
- 				uint8_t S1;
- 				uint8_t S2;
- 				uint8_t RC;
- 				uint8_t AL;
- 				uint8_t CR;
- 				uint16_t RN;
-			};
-			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			FCB_t *const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 			std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 
 			std::clog << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
 
 			break;
-		 }
-
+		}
+*/
 
 /**
  * BDOS function 16 (F_CLOSE) - Close file
@@ -232,26 +263,15 @@ void Computer::bdos(ZZ80State& state) {
  * Under CP/M-86 v4, if the first byte of the FCB is '?' or bit 7 of the byte is set, subdirectories as well as files will be returned by this search.
  */
  		case 0x11 : {
- 			struct __attribute__ ((packed)) FCB {
- 				uint8_t DR;
- 				char filename[8];
- 				char filetype[3];
- 				uint8_t EX;
- 				uint8_t S1;
- 				uint8_t S2;
- 				uint8_t RC;
- 				uint8_t AL;
- 				uint8_t CR;
- 				uint16_t RN;
-			 };
-			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : drive)), '\0' };
 #if LOG
 			std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+			std::clog << "Drive: " << dir << std::endl;
 #endif
 //			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
 //			std::cout << filename << std::endl;
-			
-			const char dir[2] = { char('A' + drive), '\0' };
+
 			pDir = opendir(dir);
 			if (pDir == NULL) {
 				state.Z_Z80_STATE_MEMBER_A = 0xFF;
@@ -266,7 +286,7 @@ void Computer::bdos(ZZ80State& state) {
 				state.Z_Z80_STATE_MEMBER_A = 0xFF;
 				break;
 			}
-			memory[dma] = '\0';
+			memory[dma] = pFCB->DR;
 			memset(memory + dma + 1, ' ', 11);
 			const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
 			for (int i = 0; i < p; ++i) {
@@ -289,20 +309,7 @@ void Computer::bdos(ZZ80State& state) {
  * In none of the official Programmer's Guides for any version of CP/M does it say that an FCB is required for Search Next (function 18). However, if the FCB passed to Search First contains an unambiguous file reference (i.e. no question marks), then the Search Next function requires an FCB passed in reg DE (for CP/M-80) or DX (for CP/M-86).
  */
  		case 0x12 : {
- 			struct FCB {
- 				uint8_t DR;
- 				char filename[8];
- 				char filetype[3];
- 				uint8_t EX;
- 				uint8_t S1;
- 				uint8_t S2;
- 				uint8_t RC;
- 				uint8_t AL;
- 				uint8_t CR;
- 				uint16_t RN;
-			 };
-			 
-			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 			std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
@@ -346,21 +353,8 @@ void Computer::bdos(ZZ80State& state) {
  * If on return A is not 0FFh, H contains the number of 128-byte records read before the error (MP/M II and later).
  */
 		case 0x14 : {
- 			struct FCB {
- 				uint8_t DR;
- 				char filename[8];
- 				char filetype[3];
- 				uint8_t EX;
- 				uint8_t S1;
- 				uint8_t S2;
- 				uint8_t RC;
- 				uint8_t AL;
- 				uint8_t CR;
- 				uint16_t RN;
-			};
-			FCB*const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+			FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 			std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
-
 #if LOG
 			std::clog << "Read next record" << std::endl;
 #endif
