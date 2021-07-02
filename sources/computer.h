@@ -30,6 +30,8 @@
 #define S_(x) S(x)
 #define S__LINE__ S_(__LINE__)
 
+#define LOG 1
+
 /**
  * @see http://www.cpm.z80.de/manuals/cpm22-m.pdf
  *
@@ -130,8 +132,8 @@ public:
 		cpu.state.Z_Z80_STATE_MEMBER_C = 0;	// Default user 0xF0 & Default disk 0x0F
 	}
 		
-	void load(const std::string& aFile, const uint16_t aAddr=0x3400 + BIAS) {
-		assert((!aFile.empty()));
+	void load(const std::string& aFile, const uint16_t aAddr=0x0100) {
+		assert(!aFile.empty());
 		
 		auto fs = std::ifstream(aFile, std::ios_base::binary | std::ios_base::in);
 		fs.exceptions(std::fstream::badbit);
@@ -152,138 +154,44 @@ public:
 		}
 	}
 	
-	void run(const uint16_t aAddr=0x3400 + BIAS) {
+	void run(const uint16_t aAddr=0x0100) {
 		cpu.state.Z_Z80_STATE_MEMBER_PC = aAddr;
 		while (true) {
+			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
-				return;
-			} else if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
+				logSpecAddr(cpu.state);
+				break;
+			} 
+			
+			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
+				logSpecAddr(cpu.state);
 				bdos(cpu.state);
 				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
-			} else {
-				if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x07) {	// RLCA
-					const auto A = cpu.state.Z_Z80_STATE_MEMBER_A;
-					const auto F = cpu.state.Z_Z80_STATE_MEMBER_F;
-					const uint8_t RA = (A << 1) | (A >> 7);
-					const uint8_t RF = (cpu.state.Z_Z80_STATE_MEMBER_F & 0b11000100) | 
-						((A & 0x80) ? 0x1 : 0x0) | 		// CF
-						((RA & 0x08) ? 0x8 : 0x0) | 	// XF
-						((RA & 0x20) ? 0x20 : 0x0);		// YF
-					
-//					logState(cpu.state);
-					z80_run(&cpu, 1);
-//					logState(cpu.state);
-					
-					if (cpu.state.Z_Z80_STATE_MEMBER_A != RA) {
-						throw std::runtime_error("Accumulator difference in RLCA!");
-					} else if (cpu.state.Z_Z80_STATE_MEMBER_F != RF) {
-						std::clog << std::hex << int(cpu.state.Z_Z80_STATE_MEMBER_F) << " != " << int(RF) << std::endl;
-						throw std::runtime_error("Flags difference in RLCA!");
-					}	
-				} else if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x17) {	// RLA
-					const auto A = cpu.state.Z_Z80_STATE_MEMBER_A;
-					const auto F = cpu.state.Z_Z80_STATE_MEMBER_F;
-					const uint8_t RA = (A << 1) | (F & 0x1 ? 0x1 : 0x0);
-					const uint8_t RF = (cpu.state.Z_Z80_STATE_MEMBER_F & 0b11000100) | 
-						((A & 0x80) ? 0x1 : 0x0) | 		// CF
-						((RA & 0x08) ? 0x8 : 0x0) | 	// XF
-						((RA & 0x20) ? 0x20 : 0x0);		// YF
-					
-//					logState(cpu.state);
-					z80_run(&cpu, 1);
-//					logState(cpu.state);
-					
-					if (cpu.state.Z_Z80_STATE_MEMBER_A != RA) {
-						throw std::runtime_error("Accumulator difference in RLA!");
-					} else if (cpu.state.Z_Z80_STATE_MEMBER_F != RF) {
-						std::clog << std::hex << int(cpu.state.Z_Z80_STATE_MEMBER_F) << " != " << int(RF) << std::endl;
-						throw std::runtime_error("Flags difference in RLA!");
-					}
-				} else if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x0F) {	// RRCA
-					const auto A = cpu.state.Z_Z80_STATE_MEMBER_A;
-					const auto F = cpu.state.Z_Z80_STATE_MEMBER_F;
-					const uint8_t RA = (A >> 1) | (A & 0x1 ? 0x80 : 0x00);
-					const uint8_t RF = (cpu.state.Z_Z80_STATE_MEMBER_F & 0b11000100) | 
-						((A & 0x01) ? 0x1 : 0x0) | 		// CF
-						((RA & 0x08) ? 0x8 : 0x0) | 	// XF
-						((RA & 0x20) ? 0x20 : 0x0);		// YF
-					
-//					logState(cpu.state);
-					z80_run(&cpu, 1);
-//					logState(cpu.state);
-					
-					if (cpu.state.Z_Z80_STATE_MEMBER_A != RA) {
-						throw std::runtime_error("Accumulator difference in RRCA!");
-					} else if (cpu.state.Z_Z80_STATE_MEMBER_F != RF) {
-						std::clog << std::hex << int(cpu.state.Z_Z80_STATE_MEMBER_F) << " != " << int(RF) << std::endl;
-						throw std::runtime_error("Flags difference in RRCA!");
-					}
-				} else if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x1F) {	// RRA
-					const auto A = cpu.state.Z_Z80_STATE_MEMBER_A;
-					const auto F = cpu.state.Z_Z80_STATE_MEMBER_F;
-					const uint8_t RA = (A >> 1) | (F & 0x1 ? 0x80 : 0x00);
-					const uint8_t RF = (cpu.state.Z_Z80_STATE_MEMBER_F & 0b11000100) | 
-						((A & 0x01) ? 0x1 : 0x0) | 		// CF
-						((RA & 0x08) ? 0x8 : 0x0) | 	// XF
-						((RA & 0x20) ? 0x20 : 0x0);		// YF
-					
-//					logState(cpu.state);
-					z80_run(&cpu, 1);
-//					logState(cpu.state);
-					
-					if (cpu.state.Z_Z80_STATE_MEMBER_A != RA) {
-						throw std::runtime_error("Accumulator difference in RRA!");
-					} else if (cpu.state.Z_Z80_STATE_MEMBER_F != RF) {
-						std::clog << std::hex << int(cpu.state.Z_Z80_STATE_MEMBER_F) << " != " << int(RF) << std::endl;
-						throw std::runtime_error("Flags difference in RRA!");
-					}
-				} else if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0xCB) {	// RLC
-					const auto A = cpu.state.Z_Z80_STATE_MEMBER_A;
-					const auto F = cpu.state.Z_Z80_STATE_MEMBER_F;
-					
-					uint8_t* r;
-					switch (memory[cpu.state.Z_Z80_STATE_MEMBER_PC+1]) {
-						case 0x1 : r = &cpu.state.Z_Z80_STATE_MEMBER_B; break;
-						case 0x2 : r = &cpu.state.Z_Z80_STATE_MEMBER_C; break;
-						case 0x3 : r = &cpu.state.Z_Z80_STATE_MEMBER_D; break;
-						case 0x4 : r = &cpu.state.Z_Z80_STATE_MEMBER_E; break;
-						case 0x5 : r = &cpu.state.Z_Z80_STATE_MEMBER_H; break;
-						case 0x6 : r = &cpu.state.Z_Z80_STATE_MEMBER_L; break;
-						case 0x7 : r = &memory[cpu.state.Z_Z80_STATE_MEMBER_HL]; break;
-						case 0x8 : r = &cpu.state.Z_Z80_STATE_MEMBER_A; break;
-					}
-					
-					const uint8_t RA = (*r << 1) | (*r & 0x08 ? 0x01 : 0x00);
-					const uint8_t RF = (cpu.state.Z_Z80_STATE_MEMBER_F & 0b00000000) | 
-						((*r & 0x80) ? 0x80 : 0x00) |	// SF
-						((*r == 0  ) ? 0x40 : 0x00) |	// ZF
-						((RA & 0x20) ? 0x20 : 0x00) |	// YF
-						((RA & 0x08) ? 0x08 : 0x00) | 	// XF
-						(parity(*r)  ? 0x04 : 0x00) | 	// PF
-						((*r & 0x80) ? 0x01 : 0x00); 	// CF
-					
-//					logState(cpu.state);
-					z80_run(&cpu, 1);
-//					logState(cpu.state);
-					
-					if (cpu.state.Z_Z80_STATE_MEMBER_A != RA) {
-						throw std::runtime_error("Accumulator difference in RLC!");
-					} else if (cpu.state.Z_Z80_STATE_MEMBER_F != RF) {
-						std::clog << std::hex << int(cpu.state.Z_Z80_STATE_MEMBER_F) << " != " << int(RF) << std::endl;
-						throw std::runtime_error("Flags difference in RLC!");
-					}
-
-				} else {
-#ifdef LOG				
-					logSpecAddr(cpu.state);
-					logInst(cpu.state);
-#endif
-					const unsigned c = z80_run(&cpu, 1);	// return cycles
-				}
+				continue;
 			}
+			
+			if (verifInstruction(cpu.state)) {
+				logSpecAddr(cpu.state);
+				continue;
+			}
+#ifdef LOG				
+			logSpecAddr(cpu.state);
+			logInst(cpu.state);
+#endif
+			z80_run(&cpu, 1);	// return cycles
 		}
 	}
+
+/**
+ * BIAS value is more or less the last free address for programs.
+ */
+	static constexpr uint16_t BIAS = 0xA800;			// 64k -> B000
+	
+/**
+ * Full memory size (can't by over 64Ko)
+ */	
+	static constexpr uint16_t MEMORY_SIZE = 62;	// Ko
 
 protected:
 	
@@ -347,37 +255,40 @@ protected:
  * @param CPU state.
  */
 	void logSpecAddr(const ZZ80State& state) const {
-		switch (state.Z_Z80_STATE_MEMBER_PC) {
-			case 0x0005 : std::clog << "; BDOS function #" << std::dec << int(state.Z_Z80_STATE_MEMBER_C) << " - "; break;
-			case 0xDC8C : std::clog << "; Routine Print" << std::endl; break;
-			case 0xDC92 : std::clog << "; Routine Print / save BC" << std::endl; break;
-			case 0xDC98 : std::clog << "; Routine Print CR/LF" << std::endl; break;
-			case 0xDCA2 : std::clog << "; Routine Print Space" << std::endl; break;
-			case 0xDCA7 : std::clog << "; Routine Print Line" << std::endl; break;
-			case 0xDCB8 : std::clog << "; Routine Reset disk" << std::endl; break;
-			case 0xDCBD : std::clog << "; Routine Select disk" << std::endl; break;
-			case 0xDCC3 : std::clog << "; Routine Call bdos & save return" << std::endl; break;
-			case 0xDCCB : std::clog << "; Routine Open file (DE) point FCB" << std::endl; break;
-			case 0xDDA7 : std::clog << "; Convert input line to upper case." << std::endl; break;
-			case 0xDE09 : std::clog << "; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
-			case 0xDE30 : std::clog << "; Check character at (DE) for legal command input. Note that the zero flag is set if the character is a delimiter." << std::endl; break;
-			case 0xDE5E : std::clog << "; Convert the first name in (FCB)." << std::endl; break;
-			case 0xDEFE : std::clog << "; Check to see if this is an ambigeous file name specification." << std::endl; break;
-			case 0xDF2E : std::clog << "; Search the command table for a match with what has just been entered." << std::endl; break;
-			case 0xDF5C : std::clog << "; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
+		const uint16_t addr = state.Z_Z80_STATE_MEMBER_PC;
+		switch (addr) {
+			case 0x0005 : std::clog << std::hex << std::setw(4) << addr << "\t; BDOS function #" << std::dec << int(state.Z_Z80_STATE_MEMBER_C) << " - "; break;
+			case 0xDC8C : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Print" << std::endl; break;
+//			case 0xDC92 : std::clog << "; Routine Print / save BC" << std::endl; break;
+//			case 0xDC98 : std::clog << "; Routine Print CR/LF" << std::endl; break;
+//			case 0xDCA2 : std::clog << "; Routine Print Space" << std::endl; break;
+//			case 0xDCA7 : std::clog << "; Routine Print Line" << std::endl; break;
+			case 0xDCB8 : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Reset disk" << std::endl; break;
+			case 0xDCBD : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Select disk" << std::endl; break;
+			case 0xDCC3 : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Call bdos & save return" << std::endl; break;
+			case 0xDCCB : std::clog << std::hex << std::setw(4) << addr << "\t; Routine Open file (DE) point FCB" << std::endl; break;
+			case 0xDDA7 : std::clog << std::hex << std::setw(4) << addr << "\t; Convert input line to upper case." << std::endl; break;
+			case 0xDE09 : std::clog << std::hex << std::setw(4) << addr << "\t; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
+//			case 0xDE30 : std::clog << "; Check character at (DE) for legal command input. Note that the zero flag is set if the character is a delimiter." << std::endl; break;
+			case 0xDE5E : std::clog << std::hex << std::setw(4) << addr << "\t; Convert the first name in (FCB)." << std::endl; break;
+			case 0xDEFE : std::clog << std::hex << std::setw(4) << addr << "\t; Check to see if this is an ambigeous file name specification." << std::endl; break;
+			case 0xDF2E : std::clog << std::hex << std::setw(4) << addr << "\t; Search the command table for a match with what has just been entered." << std::endl; break;
+			case 0xDF5C : std::clog << std::hex << std::setw(4) << addr << "\t; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
 /*			case 0xdfc0 : 
 				for (unsigned i = 0xDFC1; i <= 0xDFCF; ++i) {
 					std::clog << std::hex << std::setw(2) << int(memory[i])<< " ";
 				}
 				std::clog << std::endl;
-				break; */
-			case 0xE077 : std::clog << "; D I R E C T O R Y   C O M M A N D" << std::endl; break;
-			case 0xE210 : std::clog << "; R E N A M E   C O M M A N D" << std::endl; break;
-			case 0xE28E : std::clog << "; U S E R   C O M M A N D" << std::endl; break;
-			case 0xE2A5 : std::clog << "; T R A N S I A N T   P R O G R A M   C O M M A N D" << std::endl; break;
-			
+				break;
+*/
+			case 0xE077 : std::clog << std::hex << std::setw(4) << addr << "\t; D I R E C T O R Y   C O M M A N D" << std::endl; break;
+			case 0xE210 : std::clog << std::hex << std::setw(4) << addr << "\t; R E N A M E   C O M M A N D" << std::endl; break;
+			case 0xE28E : std::clog << std::hex << std::setw(4) << addr << "\t; U S E R   C O M M A N D" << std::endl; break;
+			case 0xE2A5 : std::clog << std::hex << std::setw(4) << addr << "\t; T R A N S I A N T   P R O G R A M   C O M M A N D" << std::endl; break;
+
+// Pour zexdoc.com
 			case 0x1dce : std::clog << "; PUSHs, call BDOS, POPs" << std::endl; break;
-			case 0x012f : std::clog << "; DONE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl; exit(0); break;
+//			case 0x012f : std::clog << "; DONE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl; exit(0); break;
 			case 0x1ae2 : std::clog << "; stt: Start Test pointed by (HL)" << std::endl; break;
 			case 0x1c38 : std::clog << "; clrmem: clear memory at hl, bc bytes" << std::endl; break;
 			case 0x1c49 : std::clog << "; initmask: initialise counter or shifter (DE & HL)" << std::endl; break;
@@ -579,7 +490,6 @@ protected:
 			case 0x66 :
 			case 0x67 :
 			case 0x68 :
-			case 0x69 :
 			case 0x6A :
 			case 0x6B :
 			case 0x6C :
@@ -829,6 +739,13 @@ protected:
 			}
 */	
 
+			case 0xDE :{
+				const uint8_t v = memory[PC+1];
+				logAddrInst(PC, inst, v);
+				std::clog << "SBC A," << std::dec << unsigned(v) << std::endl;
+				break;
+			}
+
 			case 0xE6 : { // AND n
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
@@ -847,10 +764,11 @@ protected:
 				std::clog << "EX DE,HL" << std::endl;
 				break;
 			}
-
-			case 0xED :
+			
+			case 0xED: {
 				logInstED(state);
 				break;
+			}
 
 			case 0xF3 : {	// DI
 				logAddrInst(PC, inst);
@@ -1095,19 +1013,15 @@ protected:
 		y = y ^ (y >> 8);
 		y = y ^ (y >> 16);
 		return (y & 1);
-	}	
+	}
+	
+	bool verifInstruction(ZZ80State& state) {
+
+
+		return false;
+	}
 	
 private:
-/**
- * BIAS value is more or less the last free address for programs.
- */
-	static constexpr uint16_t BIAS = 0xA800;			// 64k -> B000
-	
-/**
- * Full memory size (can't by over 64Ko)
- */	
-	static constexpr uint16_t MEMORY_SIZE = 62;	// Ko
-	
 /**
  * Z80 processor 
  * Zilog Z80 CPU Emulator
