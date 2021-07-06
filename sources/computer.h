@@ -270,7 +270,10 @@ protected:
 			case 0xDDA7 : std::clog << std::hex << std::setw(4) << addr << " ; Convert input line to upper case." << std::endl; break;
 			case 0xDE09 : std::clog << std::hex << std::setw(4) << addr << " ; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
 //			case 0xDE30 : std::clog << "; Check character at (DE) for legal command input. Note that the zero flag is set if the character is a delimiter." << std::endl; break;
+			case 0xDE4F : std::clog << std::hex << std::setw(4) << addr << " ; Get the next non-blank character from (DE)." << std::endl; break;
 			case 0xDE5E : std::clog << std::hex << std::setw(4) << addr << " ; Convert the first name in (FCB)." << std::endl; break;
+			case 0xDE96 : std::clog << std::hex << std::setw(4) << addr << " ; Convert the basic file name." << std::endl; break;
+			case 0xDEC0 : std::clog << std::hex << std::setw(4) << addr << " ; Get the extension and convert it." << std::endl; break;
 			case 0xDEFE : std::clog << std::hex << std::setw(4) << addr << " ; Check to see if this is an ambigeous file name specification." << std::endl; break;
 			case 0xDF2E : std::clog << std::hex << std::setw(4) << addr << " ; Search the command table for a match with what has just been entered." << std::endl; break;
 			case 0xDF5C : std::clog << std::hex << std::setw(4) << addr << " ; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
