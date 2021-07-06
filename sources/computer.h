@@ -224,7 +224,7 @@ protected:
  * @return read value. 
  */	
 	static zuint8 in(void* context, zuint16 address) {
-		throw std::runtime_error("Not implemented at " __FILE__ ": " S__LINE__);
+		throw std::runtime_error("Port IN Not implemented at " __FILE__ ": " S__LINE__);
 		return 0;
 	}
 
@@ -239,7 +239,7 @@ protected:
 	}
 
 	static zuint32 int_data(void* context) {
-		throw std::runtime_error("Port IN not implemented at " __FILE__ ": " S__LINE__);
+		throw std::runtime_error("Interrupt + data not implemented at " __FILE__ ": " S__LINE__);
 		return 0;
 	}
 
