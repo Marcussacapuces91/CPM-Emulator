@@ -235,11 +235,11 @@ protected:
  * @param value Value to be write in ports.
  */	
 	static void out(void* context, zuint16 address, zuint8 value) {
-		throw std::runtime_error("Not implemented at " __FILE__ ": " S__LINE__);
+		throw std::runtime_error("Port OUT not implemented at " __FILE__ ": " S__LINE__);
 	}
 
 	static zuint32 int_data(void* context) {
-		throw std::runtime_error("Not implemented at " __FILE__ ": " S__LINE__);
+		throw std::runtime_error("Port IN not implemented at " __FILE__ ": " S__LINE__);
 		return 0;
 	}
 
