@@ -136,5 +136,5 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 [build-image]: https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml/badge.svg
 [build-url]: https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml
 
-[issues-image]: https://img.shields.io/github/issues/Marcussacapuces91/CPM-Emulator?Label=Issues
+[issues-image]: https://img.shields.io/github/issues/Marcussacapuces91/CPM-Emulator?label=Issues
 [issues-url]: https://github.com/Marcussacapuces91/CPM-Emulator/issues
