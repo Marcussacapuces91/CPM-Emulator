@@ -1,6 +1,8 @@
 # CPM-Emulator
 
-[![License][license-image]][license-url] [![Build C/C++ code](https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml/badge.svg)](https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml)
+[![License][license-image]][license-url]
+[![Build][build-image]][build-url]
+[![Issues][issues-image]][issues-url]
 
 > Yet another Z80 Computer with CP/M capabilities (no BIOS, emulated BDOS, executed CP/M)
 
@@ -128,6 +130,11 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 [travis-url]: https://travis-ci.org/dbader/node-datadog-metrics
 [wiki]: https://github.com/yourname/yourproject/wiki
 
-[license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[license-image]: https://img.shields.io/github/license/Marcussacapuces91/CPM-Emulator?label=Licence
 [license-url]: LICENSE
 
+[build-image]: https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml/badge.svg
+[build-url]: https://github.com/Marcussacapuces91/CPM-Emulator/actions/workflows/build.yml
+
+[issues-image]: https://img.shields.io/github/issues/Marcussacapuces91/CPM-Emulator?Label=Issues
+[issues-url]: https://github.com/Marcussacapuces91/CPM-Emulator/issues
