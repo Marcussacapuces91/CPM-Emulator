@@ -6,12 +6,6 @@
 
 > Yet another Z80 Computer with CP/M capabilities (no BIOS, emulated BDOS, executed CP/M)
 
-<!--
-[![NPM Version][npm-image]][npm-url]
-[![Build Status][travis-image]][travis-url]
-[![Downloads Stats][npm-downloads]][npm-url]
--->
-
 A C++ CP/M machine emulator with embedded [Z80 by Sainz de Baranda y Goñi, Manuel <manuel@zxe.io>](https://github.com/redcode/Z80). BDOS functions are C++ coded. BIOS functions are not provided (until now).
 
 Tested with ZEXDOC from http://mdfs.net/Software/Z80/Exerciser/
@@ -123,13 +117,6 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 * Soul of CP/M, Mitchell Waite & Robert Lafore https://datassette.nyc3.cdn.digitaloceanspaces.com/livros/soul_of_cp-m.pdf
 
 <!-- Markdown link & img dfn's -->
-[npm-image]: https://img.shields.io/npm/v/datadog-metrics.svg?style=flat-square
-[npm-url]: https://npmjs.org/package/datadog-metrics
-[npm-downloads]: https://img.shields.io/npm/dm/datadog-metrics.svg?style=flat-square
-[travis-image]: https://img.shields.io/travis/dbader/node-datadog-metrics/master.svg?style=flat-square
-[travis-url]: https://travis-ci.org/dbader/node-datadog-metrics
-[wiki]: https://github.com/yourname/yourproject/wiki
-
 [license-image]: https://img.shields.io/github/license/Marcussacapuces91/CPM-Emulator?label=Licence
 [license-url]: LICENSE
 
