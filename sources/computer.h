@@ -107,7 +107,11 @@
 class Computer {
 
 public:
-	Computer() : bdos(cpu.state, memory) {};
+	Computer() : 
+		cpu(), 
+		memory(), 
+		bdos(memory) {
+	};
 	
 	void init() {
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
@@ -165,13 +169,12 @@ public:
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
 				logSpecAddr(cpu.state);
-				bdos.function(0);
-				continue;
+				break;
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
 				logSpecAddr(cpu.state);
-				bdos.function(cpu.state.Z_Z80_STATE_MEMBER_C);
+				bdos.function(cpu.state);
 				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
 				continue;
