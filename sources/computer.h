@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <cassert>
 
 #include <iostream>
@@ -25,13 +27,11 @@
 #include "Z80.h"
 #include "bdos.h"
 
-#pragma once
-
 #define S(x) #x
 #define S_(x) S(x)
 #define S__LINE__ S_(__LINE__)
 
-#define LOG 1
+// #define LOG 1
 
 /**
  * @see http://www.cpm.z80.de/manuals/cpm22-m.pdf
@@ -107,12 +107,6 @@
 class Computer {
 
 public:
-	Computer() : 
-		cpu(), 
-		memory(), 
-		bdos(memory) {
-	};
-	
 	void init() {
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
@@ -129,8 +123,6 @@ public:
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
-		
-//		bdos(cpu.state);
 		
 		std::cout << "CPM 2.2 Emulator - Copyright (c) 2021 by M. Sibert" << std::endl;
 		std::cout << std::endl;
@@ -172,9 +164,14 @@ public:
 				break;
 			} 
 			
+			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0003) {	// Warm boot
+				logSpecAddr(cpu.state);
+				break;
+			} 
+			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
 				logSpecAddr(cpu.state);
-				bdos.function(cpu.state);
+				bdos.function(cpu.state, memory);
 				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
 				continue;
@@ -185,8 +182,8 @@ public:
 				continue;
 			}
 #ifdef LOG				
-			logSpecAddr(cpu.state);
-			logInst(cpu.state);
+//			logSpecAddr(cpu.state);
+//			logInst(cpu.state);
 #endif
 			z80_run(&cpu, 1);	// return cycles
 		}
