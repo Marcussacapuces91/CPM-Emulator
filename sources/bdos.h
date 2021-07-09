@@ -22,20 +22,90 @@
 #include <sys/stat.h>
 #include <cstring>
 #include <iostream>
+#include <iomanip>
+
+/**
+ * CP/M File Control Block
+ * The File Control Block is a 36-byte data structure (33 bytes in CP/M 1).
+ * ---
+ * CR = current record,   ie (file pointer % 16384)  / 128
+ * EX = current extent,   ie (file pointer % 524288) / 16384
+ * S2 = extent high byte, ie (file pointer / 524288). The CP/M Plus source code refers to this use of the S2 byte as 'module number'.
+ */
+struct __attribute__ ((packed)) FCB_t {
+// Drive. 0 for default, 1-16 for A-P. 
+	uint8_t DR;
+/**
+ * Filename, 7-bit ASCII. The top bits of the filename bytes (usually referred to as F1' to F8') have the following meanings:
+ *   F1'-F4' - User-defined attributes. Any program can use them in any way it likes. The filename in the disc directory has the corresponding bits set.
+ *   F5'-F8' - Interface attributes. They modify the behaviour of various BDOS functions or indicate error conditions. In the directory these bits are always zero.
+ */                        
+	char filename[8];
+/**
+ * Filetype, 7-bit ASCII. T1' to T3' have the following meanings:
+ *   T1' - Read-Only. 
+ *   T2' - System (hidden). System files in user 0 can be opened from other user areas.
+ *   T3' - Archive. Set if the file has not been changed since it was last copied.
+ */					
+	char filetype[3];
+// Set this to 0 when opening a file and then leave it to CP/M. You can rewind a file by setting EX, RC, S2 and CR to 0. 
+	uint8_t EX;
+// Reserved.
+	uint8_t S1;
+// Reserved.
+	uint8_t S2;
+// Set this to 0 when opening a file and then leave it to CP/M.
+	uint8_t RC;
+// Image of the second half of the directory entry, containing the file's allocation (which disc blocks it owns).
+	uint8_t AL;
+// Current record within extent. It is usually best to set this to 0 immediately after a file has been opened and then ignore it.
+	uint8_t CR;
+// Random access record number (not CP/M 1). A 16-bit value in CP/M 2 (with R2 used for overflow); an 18-bit value in CP/M 3.
+	uint16_t RN;
+};
+
+
 
 class BDos {
 public:
-	BDos(ZZ80State& aState, uint8_t* aMemory): state(aState), memory(aMemory) {};
+	BDos(uint8_t* aMemory) : 
+		memory(aMemory) ,
+		drive(0),
+		dma(0x80),
+		user(0) {
+	};
 
 /**
- * Execute indicated BDOS function.
- * @param function Func. number.
+ * BDOS functions.
+ * C register contains the function value.
  * @see http://www.gaby.de/cpm/manuals/archive/cpm22htm/ch5.htm
  */	
-	void function(const unsigned char c);
+void function(ZZ80State& state) {
+
+	std::clog << "DRIVE: " << int(drive) << std::endl;
 	
+	switch (state.Z_Z80_STATE_MEMBER_C) {
+		case 0x02 : consoleOutput(state); break;
+		case 0x09 : printString(state); break;
+		case 0x0A : readConsoleBuffer(state); break;
+		case 0x0B : getConsoleStatus(state); break;
+		case 0x0D : resetDiskSystem(state); break;
+		case 0x0E : selectDisk(state); break;
+		case 0x19 : returnCurrentDisk(state); break;
+		case 0x20 : setGetUserCode(state); break;
+		
+		default:
+			std::cerr << "Register C: " << std::hex << std::setw(2) << std::setfill('0') << unsigned(state.Z_Z80_STATE_MEMBER_C) << "h";
+			std::cerr << " : Unknown BDOS function!" << std::endl;
+			
+			throw std::runtime_error("Un-emulated BDOS function");
+			break;
+	}
+}
+
+protected:
 	inline
-	void returnCode(const uint16_t val) {
+	void returnCode(ZZ80State& state, const uint16_t val) {
 		state.Z_Z80_STATE_MEMBER_HL = val;
 		state.Z_Z80_STATE_MEMBER_A = val & 0x00FF;
 		state.Z_Z80_STATE_MEMBER_B = val >> 8;
@@ -51,7 +121,7 @@ public:
  * Entered with C=2, E=ASCII character.
  * Send the character in E to the screen. Tabs are expanded to spaces. Output can be paused with ^S and restarted with ^Q (or any key under versions prior to CP/M 3). While the output is paused, the program can be terminated with ^C.
  */
-	void consoleOutput() {
+	void consoleOutput(ZZ80State& state) {
  #ifdef LOG
 		std::clog << "Write console ASCII " << unsigned(state.Z_Z80_STATE_MEMBER_E) << " (";
 		switch(state.Z_Z80_STATE_MEMBER_E) {
@@ -65,7 +135,7 @@ public:
 		std::clog << ")" <<  std::endl;
 #endif
 		if (state.Z_Z80_STATE_MEMBER_E) std::cout << state.Z_Z80_STATE_MEMBER_E;
-		returnCode(0);
+		returnCode(state, 0);
 	}		
 	
 	void readerInput();
@@ -87,14 +157,14 @@ public:
  * Display a string of ASCII characters, terminated with the $ character. Thus the string may not contain $ characters - so, for example, the VT52 cursor positioning command ESC Y y+32 x+32 will not be able to use row 4.
  * Under CP/M 3 and above, the terminating character can be changed using BDOS function 110.
  */
-	void printString() {
+	void printString(ZZ80State& state) {
 #if LOG
 		std::clog << "Output string (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 #endif
 		for (uint16_t i = state.Z_Z80_STATE_MEMBER_DE ; memory[i] != '$' ; ++i) {
 			std::cout << char(memory[i]);
 		}
-		returnCode(0);
+		returnCode(state, 0);
 	}
 	
 /**
@@ -111,7 +181,7 @@ public:
  * If DE=0 (in 16-bit versions, DX=0FFFFh) the next byte contains the number of bytes already in the buffer; otherwise this is ignored. On return from the function, it contains the number of bytes present in the buffer.
  * The bytes typed then follow. There is no end marker.
  */
-	void readConsoleBuffer() {
+	void readConsoleBuffer(ZZ80State& state) {
 #if LOG
 		std::clog << "Buffered console input (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 //			std::clog << "mx" << unsigned(memory[DE+0]) << std::endl;
@@ -125,7 +195,7 @@ public:
 		for (unsigned i = 0; i < line.length(); ++i) {
 			memory[state.Z_Z80_STATE_MEMBER_DE + 2 + i] = line[i];
 		}
-		returnCode(0);
+		returnCode(state, 0);
 	}
 
 /**
@@ -134,11 +204,11 @@ public:
  * Entered with C=0Bh. Returns A=L=status
  * Returns A=0 if no characters are waiting, nonzero if a character is waiting.
  */
-	void getConsoleStatus() {
+	void getConsoleStatus(ZZ80State& state) {
 #if LOG
 		std::clog << "Console status - always ok" << std::endl;
 #endif
-		returnCode(0);
+		returnCode(state, 0);
 	}
 	
 	void returnVersionNumber();
@@ -151,13 +221,13 @@ public:
  * In versions 1 and 2, logs in drive A: and returns 0FFh if there is a file present whose name begins with a $, otherwise 0. Replacement BDOSses may modify this behaviour.
  * In multitasking versions, returns 0 if succeeded, or 0FFh if other processes have files open on removable or read-only drives. 
  */
-	void resetDiskSystem() {
+	void resetDiskSystem(ZZ80State& state) {
 #if LOG
 		std::clog << "Reset drive ; default to A" << std::endl;
 #endif
 		drive = 0;
 		dma = 0x80;
-		returnCode(0);
+		returnCode(state, 0);
 	}
 		
 /**
@@ -167,7 +237,7 @@ public:
  * The drive number passed to this routine is 0 for A:, 1 for B: up to 15 for P:.
  * Sets the currently selected drive to the drive in A; logs in the disc. Returns 0 if successful or 0FFh if error. Under MP/M II and later versions, H can contain a physical error number. 
  */
- 	void selectDisk() {
+ 	void selectDisk(ZZ80State& state) {
 		if (state.Z_Z80_STATE_MEMBER_E <= 15) {
 #if LOG
 			std::clog << "Select disc to " << char('A' + state.Z_Z80_STATE_MEMBER_E) << std::endl;
@@ -177,7 +247,7 @@ public:
 			const int err = stat(dir, &st);
 			if (!err) {
 				drive = state.Z_Z80_STATE_MEMBER_E;
-				returnCode(0);
+				returnCode(state, 0);
 				return;
 			}
 			state.Z_Z80_STATE_MEMBER_H = errno;
@@ -185,7 +255,7 @@ public:
 		} else {
 			std::cerr << "Invalid disk (A-P only)!" << std::endl;
 		}
-		returnCode(0xFF);
+		returnCode(state, 0xFF);
 	}
 	
 	void OpenFile();
@@ -357,15 +427,12 @@ public:
  * Supported by: All versions
  * Entered with C=19h. Returns drive in A. Returns currently selected drive. 0 => A:, 1 => B: etc.
  */
-/*
-		case 0x19 : {
+ 	void returnCurrentDisk(ZZ80State& state) {
 #if LOG
-			std::clog << "Get drive (" << drive << ')' << std::endl;
+		std::clog << "Get drive (" << drive << ')' << std::endl;
 #endif
-			bdosReturnCode(state, drive);	// ok - drive numb.
-			break;
-		}
-*/
+		returnCode(state, drive);	// ok - drive numb.
+	}
 
 /**
  * BDOS function 26 (F_DMAOFF) - Set DMA address
@@ -391,31 +458,27 @@ public:
  * Set current user number. E should be 0-15, or 255 to retrieve the current user number into A. Some versions can use user areas 16-31, but these should be avoided for compatibility reasons.
  * DOS+ returns the number set in A.
  */
-/*
-		case 0x20 : {
-			if (state.Z_Z80_STATE_MEMBER_E == 0xFF) {
+	void setGetUserCode(ZZ80State& state) {
+		if (state.Z_Z80_STATE_MEMBER_E == 0xFF) {
 #if LOG
-				std::clog << "Get user number (" << unsigned(user) << ")" << std::endl;
+			std::clog << "Get user number (" << unsigned(user) << ")" << std::endl;
 #endif
-				state.Z_Z80_STATE_MEMBER_A = user;
-				bdosReturnCode(state, user);	// OK - user numb.
-			} else {
+			returnCode(state, user);	// OK - user numb.
+		} else {
 #if LOG
-				std::clog << "Set user number to " << unsigned(state.Z_Z80_STATE_MEMBER_E) << std::endl;
+			std::clog << "Set user number to " << unsigned(state.Z_Z80_STATE_MEMBER_E) << std::endl;
 #endif
-				user = state.Z_Z80_STATE_MEMBER_E;
-				bdosReturnCode(state, 0);	// OK
-			}
-			break;
+			user = state.Z_Z80_STATE_MEMBER_E;
+			returnCode(state, 0);	// OK
 		}
-*/
+	}
 
 
 private:
-	ZZ80State& state;	
-	uint8_t* memory;
+	uint8_t *const memory;
 	
 	uint8_t drive;
 	uint16_t dma;
+	uint8_t user;
 };
 

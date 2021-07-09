@@ -27,8 +27,8 @@ CommandLine=
 Folders=
 IncludeVersionInfo=0
 SupportXPThemes=0
-CompilerSet=0
-CompilerSettings=0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;4;0;0;0
+CompilerSet=1
+CompilerSettings=0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;1;0;0;0;0;0;0;0
 UnitCount=6
 
 [VersionInfo]
@@ -60,27 +60,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit2]
-FileName=bdos.cpp
-CompileCpp=1
-Folder=
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=$(CPP) -c bdos.cpp -o bdos.o $(CXXFLAGS)
-
 [Unit3]
-FileName=Z80.c
-CompileCpp=0
-Folder=
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=$(CC) -c Z80.c -o Z80.o $(CFLAGS)
-
-[Unit4]
 FileName=Z80.h
 CompileCpp=1
 Folder=
@@ -90,7 +70,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit5]
+[Unit4]
 FileName=Z80-support.h
 CompileCpp=1
 Folder=
@@ -100,7 +80,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit6]
+[Unit5]
 FileName=computer.h
 CompileCpp=1
 Folder=
@@ -109,4 +89,34 @@ Link=1
 Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
+
+[Unit6]
+FileName=bdos.h
+CompileCpp=1
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit7]
+FileName=bdos.h
+CompileCpp=1
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit2]
+FileName=Z80.c
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CC) -c Z80.c -o Z80.o $(CFLAGS)
 
