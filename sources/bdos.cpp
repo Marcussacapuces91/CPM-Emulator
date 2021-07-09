@@ -72,9 +72,11 @@ struct __attribute__ ((packed)) FCB_t {
  */	
 void Computer::bdos(ZZ80State& state) {
 	static int user = 0;
-	static unsigned drive = 0;
+	static uint8_t drive = 0;
 	static uint16_t dma = 0x80;	// default init value
 	static DIR *pDir = NULL;	// parcours de drive virtuel
+	
+	std::clog << "DRIVE: " << int(drive) << std::endl;
 	
 	switch (state.Z_Z80_STATE_MEMBER_C) {
 
