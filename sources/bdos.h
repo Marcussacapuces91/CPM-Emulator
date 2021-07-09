@@ -24,6 +24,8 @@
 #include <iostream>
 #include <iomanip>
 
+#define LOG 1
+
 /**
  * CP/M File Control Block
  * The File Control Block is a 36-byte data structure (33 bytes in CP/M 1).
@@ -68,30 +70,29 @@ struct __attribute__ ((packed)) FCB_t {
 
 class BDos {
 public:
-	BDos(uint8_t* aMemory) : 
-		memory(aMemory) ,
-		drive(0),
-		dma(0x80),
-		user(0) {
-	};
 
 /**
  * BDOS functions.
  * C register contains the function value.
  * @see http://www.gaby.de/cpm/manuals/archive/cpm22htm/ch5.htm
  */	
-void function(ZZ80State& state) {
+void function(ZZ80State& state, uint8_t *const memory) {
+	assert(memory);
 
-	std::clog << "DRIVE: " << int(drive) << std::endl;
+	std::clog << "DRIVE: " << int(drive) << " - ";
 	
 	switch (state.Z_Z80_STATE_MEMBER_C) {
 		case 0x02 : consoleOutput(state); break;
-		case 0x09 : printString(state); break;
-		case 0x0A : readConsoleBuffer(state); break;
+		case 0x09 : printString(state, memory); break;
+		case 0x0A : readConsoleBuffer(state, memory); break;
 		case 0x0B : getConsoleStatus(state); break;
 		case 0x0D : resetDiskSystem(state); break;
 		case 0x0E : selectDisk(state); break;
+		case 0x0F : openFile(state, memory); break;
+		case 0x11 : searchForFirst(state, memory); break;
+		case 0x12 : searchForNext(state, memory); break;
 		case 0x19 : returnCurrentDisk(state); break;
+		case 0x1A : setDMAAddress(state); break;
 		case 0x20 : setGetUserCode(state); break;
 		
 		default:
@@ -105,7 +106,7 @@ void function(ZZ80State& state) {
 
 protected:
 	inline
-	void returnCode(ZZ80State& state, const uint16_t val) {
+	void returnCode(ZZ80State& state, const uint16_t val) const  {
 		state.Z_Z80_STATE_MEMBER_HL = val;
 		state.Z_Z80_STATE_MEMBER_A = val & 0x00FF;
 		state.Z_Z80_STATE_MEMBER_B = val >> 8;
@@ -157,12 +158,13 @@ protected:
  * Display a string of ASCII characters, terminated with the $ character. Thus the string may not contain $ characters - so, for example, the VT52 cursor positioning command ESC Y y+32 x+32 will not be able to use row 4.
  * Under CP/M 3 and above, the terminating character can be changed using BDOS function 110.
  */
-	void printString(ZZ80State& state) {
+	void printString(ZZ80State& state, const uint8_t *const memory) const {
 #if LOG
 		std::clog << "Output string (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 #endif
-		for (uint16_t i = state.Z_Z80_STATE_MEMBER_DE ; memory[i] != '$' ; ++i) {
-			std::cout << char(memory[i]);
+		const auto* c = &memory[state.Z_Z80_STATE_MEMBER_DE];
+		while (*c != '$') {
+			std::cout << char(*(c++));
 		}
 		returnCode(state, 0);
 	}
@@ -181,19 +183,20 @@ protected:
  * If DE=0 (in 16-bit versions, DX=0FFFFh) the next byte contains the number of bytes already in the buffer; otherwise this is ignored. On return from the function, it contains the number of bytes present in the buffer.
  * The bytes typed then follow. There is no end marker.
  */
-	void readConsoleBuffer(ZZ80State& state) {
+	void readConsoleBuffer(ZZ80State& state, uint8_t *const memory) {
 #if LOG
 		std::clog << "Buffered console input (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 //			std::clog << "mx" << unsigned(memory[DE+0]) << std::endl;
 //			std::clog << "nc" << unsigned(memory[DE+1]) << std::endl;
 #endif			
 		std::string line;
-		std::cin >> line;
+		std::getline(std::cin, line);
 		line = line.substr(0, memory[state.Z_Z80_STATE_MEMBER_DE]);
-		
+
 		memory[state.Z_Z80_STATE_MEMBER_DE + 1] = line.length();
-		for (unsigned i = 0; i < line.length(); ++i) {
-			memory[state.Z_Z80_STATE_MEMBER_DE + 2 + i] = line[i];
+		auto *s = memory + state.Z_Z80_STATE_MEMBER_DE + 2;
+		for (auto i = line.begin(); i != line.end(); ++i) {
+			*s++ = *i;
 		}
 		returnCode(state, 0);
 	}
@@ -258,8 +261,6 @@ protected:
 		returnCode(state, 0xFF);
 	}
 	
-	void OpenFile();
-	
 /**
  * BDOS function 15 (F_OPEN) - Open file
  * Supported by: All versions
@@ -276,16 +277,14 @@ protected:
  *  * F7' is set if the file is read-only because writing is password protected and no password was supplied;
  *  * F8' is set if the file is read-only because it is a User 0 system file opened from another user area.
  */
- /*
-		case 0x0F : {
-			FCB_t *const pFCB = reinterpret_cast<FCB*const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-			std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
-
-			std::clog << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
-
-			break;
-		}
-*/
+	void openFile(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+#if LOG
+		std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+#endif
+		std::cerr << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
+		returnCode(state, 0xFF);
+	}
 
 /**
  * BDOS function 16 (F_CLOSE) - Close file
@@ -313,47 +312,43 @@ protected:
  * Returns A=0FFh if error (CP/M 3 returns a hardware error in H and B), or A=0-3 if successful. The value returned can be used to calculate the address of a memory image of the directory entry; it is to be found at DMA+A*32.
  * Under CP/M-86 v4, if the first byte of the FCB is '?' or bit 7 of the byte is set, subdirectories as well as files will be returned by this search.
  */
-/*
-	void 
- 		case 0x11 : {
-			const FCB_t *const pFCB = reinterpret_cast<const FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-			const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : drive)), '\0' };
+	void searchForFirst(ZZ80State& state, uint8_t *const memory) {
+		const FCB_t *const pFCB = reinterpret_cast<const FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : drive)), '\0' };
 #if LOG
-			std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
-			std::clog << "Drive: " << dir << std::endl;
+		std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+		std::clog << "Drive: " << dir << std::endl;
 #endif
-			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
-			std::cout << int(pFCB->DR) << ":" << filename << std::endl;
+		const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
+		std::cout << int(pFCB->DR) << ":" << filename << std::endl;
 
-			pDir = opendir(dir);
-			if (pDir == NULL) {
-				std::cerr << "Can't open local dir /" << dir << std::endl;
-				bdosReturnCode(state, 0xFF);	// KO
-				break;
-			}
-			struct dirent* pEnt = NULL;
-			do {
-				pEnt = readdir(pDir);
-			} while ( (pEnt != NULL) && ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) );
-
-			if (pEnt == NULL) {
-				bdosReturnCode(state, 0xFF);	// KO - no valid file found
-				break;
-			}
-			memory[dma] = pFCB->DR;
-			memset(memory + dma + 1, ' ', 11);
-			const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
-			for (int i = 0; i < p; ++i) {
-				memory[dma+i+1] = pEnt->d_name[i];
-			}
-			for (int i = 0; i < 3; ++i) {
-				memory[dma+9+i] = pEnt->d_name[p+i+1];
-			}
-			
-			bdosReturnCode(state, 0);	// OK
-			break;
+		pDir = opendir(dir);
+		if (pDir == NULL) {
+			std::cerr << "Can't open local dir /" << dir << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
 		}
-*/
+		struct dirent* pEnt = NULL;
+		do {
+			pEnt = readdir(pDir);
+		} while ( (pEnt != NULL) && ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) );
+
+		if (pEnt == NULL) {
+			returnCode(state, 0xFF);	// KO - no valid file found
+			return;
+		}
+		memory[dma] = pFCB->DR;
+		memset(memory + dma + 1, ' ', 11);
+		const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
+		for (int i = 0; i < p; ++i) {
+			memory[dma+i+1] = pEnt->d_name[i];
+		}
+		for (int i = 0; i < 3; ++i) {
+			memory[dma+9+i] = pEnt->d_name[p+i+1];
+		}
+		
+		returnCode(state, 0);	// OK
+	}
 
 /**
  * BDOS function 18 (F_SNEXT) - search for next
@@ -363,39 +358,36 @@ protected:
  * Function 18 behaves exactly as number 17, but finds the next occurrence of the specified file after the one returned last time. The FCB parameter is not documented, but Jim Lopushinsky states in LD301.DOC:
  * In none of the official Programmer's Guides for any version of CP/M does it say that an FCB is required for Search Next (function 18). However, if the FCB passed to Search First contains an unambiguous file reference (i.e. no question marks), then the Search Next function requires an FCB passed in reg DE (for CP/M-80) or DX (for CP/M-86).
  */
-/*
- 		case 0x12 : {
-			FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+	void searchForNext(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
-			std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+		std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
 //			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
 //			const std::string dir = std::string("CPM22-b");
-			if (pDir == NULL) {
-				std::cerr << "No search for first!" << std::endl;
-				bdosReturnCode(state, 0xFF);	// KO
-				break;
-			}
-
-			struct dirent *const pEnt = readdir(pDir);
-			if (pEnt == NULL) {
-				bdosReturnCode(state, 0xFF);	// KO - no more files
-				break;
-			}
-			memory[dma] = '\0';
-			memset(memory + dma + 1, ' ', 11);
-			const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
-			for (int i = 0; i < p; ++i) {
-				memory[dma+i+1] = pEnt->d_name[i];
-			}
-			for (int i = 0; i < strlen(pEnt->d_name) - p - 1; ++i) {
-				memory[dma+9+i] = pEnt->d_name[p+i+1];
-			}
-			
-			bdosReturnCode(state, 0);	// OK, first place in DMA
-			break;
+		if (pDir == NULL) {
+			std::cerr << "No search for first!" << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
 		}
-*/
+
+		struct dirent *const pEnt = readdir(pDir);
+		if (pEnt == NULL) {
+			returnCode(state, 0xFF);	// KO - no more files
+			return;
+		}
+		memory[dma] = '\0';
+		memset(memory + dma + 1, ' ', 11);
+		const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
+		for (int i = 0; i < p; ++i) {
+			memory[dma+i+1] = pEnt->d_name[i];
+		}
+		for (int i = 0; i < strlen(pEnt->d_name) - p - 1; ++i) {
+			memory[dma+9+i] = pEnt->d_name[p+i+1];
+		}
+		
+		returnCode(state, 0);	// OK, first place in DMA
+	}
 
 /**
  * BDOS function 20 (F_READ) - read next record
@@ -440,16 +432,13 @@ protected:
  * Entered with C=1Ah, DE=address.
  * Set the Direct Memory Access address; a pointer to where CP/M should read or write data. Initially used for the transfer of 128-byte records between memory and disc, but over the years has gained many more functions.
  */
-/*
-		case 0x1A : {
+ 	void setDMAAddress(ZZ80State& state) {
 #if LOG
-			std::clog << "Set DMA address  (" << std::hex << state.Z_Z80_STATE_MEMBER_DE << ')' << std::endl;
+		std::clog << "Set DMA address  (" << std::hex << state.Z_Z80_STATE_MEMBER_DE << ')' << std::endl;
 #endif
-			dma = state.Z_Z80_STATE_MEMBER_DE;
-			bdosReturnCode(state, 0);	// OK
-			break;
-		}
-*/
+		dma = state.Z_Z80_STATE_MEMBER_DE;
+		returnCode(state, 0);	// OK
+	}
 		
 /**
  * BDOS function 32 (F_USERNUM) - get/set user number
@@ -473,12 +462,10 @@ protected:
 		}
 	}
 
-
 private:
-	uint8_t *const memory;
-	
 	uint8_t drive;
 	uint16_t dma;
 	uint8_t user;
+	DIR* pDir;
 };
 
