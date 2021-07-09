@@ -23,6 +23,7 @@
 #include <exception>
 
 #include "Z80.h"
+#include "bdos.h"
 
 #pragma once
 
@@ -106,6 +107,8 @@
 class Computer {
 
 public:
+	Computer() : bdos(cpu.state, memory) {};
+	
 	void init() {
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
@@ -122,6 +125,8 @@ public:
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
+		
+//		bdos(cpu.state);
 		
 		std::cout << "CPM 2.2 Emulator - Copyright (c) 2021 by M. Sibert" << std::endl;
 		std::cout << std::endl;
@@ -160,12 +165,13 @@ public:
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
 				logSpecAddr(cpu.state);
-				break;
+				bdos.function(0);
+				continue;
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
 				logSpecAddr(cpu.state);
-				bdos(cpu.state);
+				bdos.function(cpu.state.Z_Z80_STATE_MEMBER_C);
 				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
 				continue;
@@ -243,20 +249,6 @@ protected:
 		return 0;
 	}
 
-/**
- * Execute indicated BDOS function (usually C reg.).
- * @param function Func. number.
- * @see http://www.gaby.de/cpm/manuals/archive/cpm22htm/ch5.htm
- */	
-	void bdos(ZZ80State& state);
-	
-	inline
-	void bdosReturnCode(ZZ80State& state, const uint16_t val) {
-		state.Z_Z80_STATE_MEMBER_HL = val;
-		state.Z_Z80_STATE_MEMBER_A = val & 0x00FF;
-		state.Z_Z80_STATE_MEMBER_B = val >> 8;
-	}
-	
 /**
  * Add a comment for special addr found in CCP source code.
  * @param CPU state.
@@ -1047,5 +1039,10 @@ private:
  * Memory container.
  */	
 	uint8_t memory[MEMORY_SIZE * 1024];
+	
+/**
+ * BDOS functions & variables
+ */
+ 	BDos bdos;
 };
 
