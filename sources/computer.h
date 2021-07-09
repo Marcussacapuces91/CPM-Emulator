@@ -250,6 +250,13 @@ protected:
  */	
 	void bdos(ZZ80State& state);
 	
+	inline
+	void bdosReturnCode(ZZ80State& state, const uint16_t val) {
+		state.Z_Z80_STATE_MEMBER_HL = val;
+		state.Z_Z80_STATE_MEMBER_A = val & 0x00FF;
+		state.Z_Z80_STATE_MEMBER_B = val >> 8;
+	}
+	
 /**
  * Add a comment for special addr found in CCP source code.
  * @param CPU state.
@@ -847,7 +854,9 @@ protected:
 			case 0xFE : { // CP n (v - A ?)
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
-				std::clog << "CP " << std::dec << unsigned(v) << std::endl;
+				std::clog << "CP " << std::dec << unsigned(v);
+				if (v >= ' ') std::clog << " '" << char(v) << "'";
+				std::clog << std::endl;
 				break;
 			}
 
