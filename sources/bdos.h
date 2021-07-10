@@ -82,6 +82,7 @@ void function(ZZ80State& state, uint8_t *const memory) {
 	std::clog << "DRIVE: " << int(drive) << " - ";
 	
 	switch (state.Z_Z80_STATE_MEMBER_C) {
+		case 0x01 : consoleInput(state); break;
 		case 0x02 : consoleOutput(state); break;
 		case 0x09 : printString(state, memory); break;
 		case 0x0A : readConsoleBuffer(state, memory); break;
@@ -114,7 +115,10 @@ protected:
 	
 	void systemReset();
 	
-	void consoleInput();
+	void consoleInput(ZZ80State& state) {
+		const auto c = std::cin.get();
+		returnCode(state, c);
+	}
 
 /**
  * BDOS function 2 (C_WRITE) - Console output
@@ -209,12 +213,24 @@ protected:
  */
 	void getConsoleStatus(ZZ80State& state) {
 #if LOG
-		std::clog << "Console status - always ok" << std::endl;
+		std::clog << "Console status" << std::endl;
 #endif
-		returnCode(state, 0);
+		char c;
+		const auto n = std::cin.readsome(&c, 1);
+		if (!n) {
+			returnCode(state, 0x00);
+		} else {
+			std::cin.putback(c);
+			returnCode(state, 0xFF);
+		}
 	}
 	
-	void returnVersionNumber();
+	void returnVersionNumber(ZZ80State& state) {
+#if LOG
+		std::clog << "Version number" << std::endl;
+#endif
+		returnCode(state, 0x0022);
+	};
 	
 /**
  * BDOS function 13 (DRV_ALLRESET) - Reset discs
@@ -282,7 +298,7 @@ protected:
 #if LOG
 		std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		std::cerr << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
+//		std::cerr << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
 		returnCode(state, 0xFF);
 	}
 
@@ -317,37 +333,29 @@ protected:
 		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : drive)), '\0' };
 #if LOG
 		std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
-		std::clog << "Drive: " << dir << std::endl;
 #endif
-		const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
-		std::cout << int(pFCB->DR) << ":" << filename << std::endl;
 
+// Init filter
+		memcpy(filter, pFCB->filename, 11);
+		filter[11] = '\0';
+		
 		pDir = opendir(dir);
 		if (pDir == NULL) {
 			std::cerr << "Can't open local dir /" << dir << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
-		struct dirent* pEnt = NULL;
-		do {
-			pEnt = readdir(pDir);
-		} while ( (pEnt != NULL) && ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) );
 
-		if (pEnt == NULL) {
-			returnCode(state, 0xFF);	// KO - no valid file found
-			return;
+		char filename[12];
+		if (findFile(pDir, filter, filename)) {
+			memory[dma] = pFCB->DR;
+			memcpy(memory + dma + 1, filename, 11);
+			returnCode(state, 0x00);	// OK
+		} else {
+			returnCode(state, 0xFF);	// KO
+			closedir(pDir);
+			pDir = NULL;
 		}
-		memory[dma] = pFCB->DR;
-		memset(memory + dma + 1, ' ', 11);
-		const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
-		for (int i = 0; i < p; ++i) {
-			memory[dma+i+1] = pEnt->d_name[i];
-		}
-		for (int i = 0; i < 3; ++i) {
-			memory[dma+9+i] = pEnt->d_name[p+i+1];
-		}
-		
-		returnCode(state, 0);	// OK
 	}
 
 /**
@@ -359,34 +367,28 @@ protected:
  * In none of the official Programmer's Guides for any version of CP/M does it say that an FCB is required for Search Next (function 18). However, if the FCB passed to Search First contains an unambiguous file reference (i.e. no question marks), then the Search Next function requires an FCB passed in reg DE (for CP/M-80) or DX (for CP/M-86).
  */
 	void searchForNext(ZZ80State& state, uint8_t *const memory) {
+		
+		
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-//			const std::string filename = std::string(pFCB->filename) + '.' + pFCB->filetype;
-//			const std::string dir = std::string("CPM22-b");
 		if (pDir == NULL) {
 			std::cerr << "No search for first!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
-
-		struct dirent *const pEnt = readdir(pDir);
-		if (pEnt == NULL) {
-			returnCode(state, 0xFF);	// KO - no more files
-			return;
-		}
-		memory[dma] = '\0';
-		memset(memory + dma + 1, ' ', 11);
-		const int p = strchr(pEnt->d_name, int('.')) - pEnt->d_name;
-		for (int i = 0; i < p; ++i) {
-			memory[dma+i+1] = pEnt->d_name[i];
-		}
-		for (int i = 0; i < strlen(pEnt->d_name) - p - 1; ++i) {
-			memory[dma+9+i] = pEnt->d_name[p+i+1];
-		}
 		
-		returnCode(state, 0);	// OK, first place in DMA
+		char filename[12];
+		if (findFile(pDir, filter, filename)) {
+			memory[dma] = pFCB->DR;
+			memcpy(memory + dma + 1, filename, 11);
+			returnCode(state, 0x00);	// OK
+		} else {
+			returnCode(state, 0xFF);	// KO
+			closedir(pDir);
+			pDir = NULL;
+		}
 	}
 
 /**
@@ -462,10 +464,82 @@ protected:
 		}
 	}
 
+
+	bool findFile(DIR *const pDir, const char filter[12], char filename[12]) {
+		struct dirent* pEnt;
+		while (true) {
+			auto* pEnt = readdir(pDir);
+			
+			if (pEnt == NULL) {
+				return false;
+			}
+				
+			if ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) continue;	// "." & ".."
+
+			if (strchr(pEnt->d_name, '.')) {		// with dot in name
+				if (strlen(pEnt->d_name) > 12) continue;	// > 12 char --> CPM invalid
+				if ((strchr(pEnt->d_name, '.') - pEnt->d_name) > 8) continue;	// name > 8 char --> CPM invalid
+			} else {
+				if (strlen(pEnt->d_name) > 8) continue;	// name > 8 char --> CPM invalid
+			}
+			
+			memset(filename, ' ', 11);
+			filename[11] = '\0';
+
+			const auto p = strchr(pEnt->d_name, '.');
+			const auto l = p ? p - pEnt->d_name : strlen(pEnt->d_name);
+			for (auto i = 0; i < l; ++i) {
+				filename[i] = toupper(pEnt->d_name[i]);
+			}
+			if (p) {
+				const auto l = strlen(pEnt->d_name) - (p - pEnt->d_name + 1);
+				for (auto i = 0; i < l; ++i) {
+					filename[8 + i] = toupper(p[i + 1]);
+				}
+			}
+			
+			bool ok = true;
+			for (auto i = 0; i < 11; ++i) {
+				if ((filter[i] != '?') && (filter[i] != filename[i])) {
+					ok = false;
+					break;
+				}
+			}
+			if (!ok) continue;	// filename invalid for filter
+
+			return true;
+		}
+	}
+
+
+
+
+
 private:
+/**
+ * Cuurent drive.
+ */
 	uint8_t drive;
+
+/**
+ * DMA's address.
+ */
 	uint16_t dma;
+
+/**
+ * Current user.
+ */
 	uint8_t user;
+
+/**
+ * Scanning a path.
+ */
 	DIR* pDir;
+
+/**
+ * Filter used during scanning a path.
+ */
+	char filter[12];
+
 };
 
