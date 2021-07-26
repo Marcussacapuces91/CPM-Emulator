@@ -845,60 +845,15 @@ protected:
 				break;
 			}
 
-/*	
-	// IY instructions 
-	
-			case 0xFD : {
-				const uint8_t inst2 = memory[PC+1];
-				switch (inst2) {
-					case 0x2A : {	// LD IY,(nn)
-						const uint16_t addr = memory[PC+3] * 256U + memory[PC+2];
-	#if LOG
-						logAddrInst(PC, inst, inst2, memory[PC+2], memory[PC+3]);
-						std::clog << "LD IY,(" << std::hex << std::setw(4) << ")" << std::endl;
-	#endif
-						IY = memory[addr] + 256 * memory[addr+1];
-						PC += 4;
-						break;
-					}
-	
-					case 0xE1 : {	// POP IY
-	#if LOG
-						logAddrInst(PC, inst, inst2);
-						std::clog << "POP IY" << std::endl;
-	#endif
-						IY = memory[SP++];
-						IY += memory[SP++] * 256;
-						PC += 2;
-						break;
-					}
-					
-					case 0xE5 : {	// PUSH IX
-	#if LOG
-						logAddrInst(PC, inst, inst2);
-						std::clog << "PUSH IY" << std::endl;
-	#endif
-						memory[--SP] = (IY >> 8);
-						memory[--SP] = IY & 0x00FF;
-						PC += 2;
-						break;
-					}
-	
-					default:
-						logAddrInst(PC, inst, inst2, memory[PC+2]);
-						std::clog << " : Unknown IY instruction!" << std::endl;
-						
-						throw(std::string("Not emulated instruction"));
-						break;
-				
-				}
-				break;
-			}
-*/
 
 			case 0xF9 : {	// LD SP,HL
 				logAddrInst(PC, inst);
 				std::clog << "LD SP,HL" << std::endl;
+				break;
+			}
+
+			case 0xFD: {
+				logInstFD(state);
 				break;
 			}
 
@@ -980,6 +935,23 @@ protected:
 		}
 	}
 	
+	void logInstFD(const ZZ80State& state) const {
+		const uint16_t PC = state.Z_Z80_STATE_MEMBER_PC;
+		const uint8_t inst = memory[PC];
+		const uint8_t inst2 = memory[PC+1];
+		
+		switch (inst2) {
+
+			default:
+				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC << "\t";
+				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+0]) << ' ';
+				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+1]) << ' ';
+				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+2]) << "\t\t\t";
+				std::clog << " : Unknown instruction in " << __FILE__ << ": " << S__LINE__ << " - " << __PRETTY_FUNCTION__ << std::endl;
+				break;
+		}
+	}
+
 	void logAddrInst(const uint16_t addr, const uint8_t inst) const {
 		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "\t";
 		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst) << "\t\t\t\t";
@@ -1080,13 +1052,7 @@ protected:
 		y = y ^ (y >> 16);
 		return (y & 1);
 	}
-	
-	bool verifInstruction(ZZ80State& state) {
-
-
-		return false;
-	}
-	
+		
 /**
  * Reset computer set all low-memory values & lauche warm boot
  */
@@ -1096,7 +1062,7 @@ protected:
 		memory[0x0001] = BIAS & 0xFF;	// BIAS (LL)
 		memory[0x0002] = BIAS >> 8;		// BIAS (HH)
 
-		memory[0x0004] = 0;		// Default drive: 0=A
+//		memory[0x0004] = 0;		// Default drive: 0=A
 		
 		// WARM BOOT
 		memory[0x0005] = 0xC3;			// JUMP
