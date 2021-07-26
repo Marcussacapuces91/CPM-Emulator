@@ -832,6 +832,13 @@ protected:
 				break;
 			}
 	
+			case 0xF6 : { // OR n
+				const uint8_t v = memory[PC+1];
+				logAddrInst(PC, inst, v);
+				std::clog << "OR " << std::dec << unsigned(v) << std::endl;
+				break;
+			}
+	
 			case 0xFB : {	// EI
 				logAddrInst(PC, inst);
 				std::clog << "EI" << std::endl;
@@ -1002,13 +1009,13 @@ protected:
 	void logState(const ZZ80State& state) const {
 		std::clog << "CPU state" << std::endl;
 		std::clog << "A:" << std::hex << int(state.Z_Z80_STATE_MEMBER_A) << "h\t\t";
-		std::clog << "Flags: S:" << (state.Z_Z80_STATE_MEMBER_F & 0x80) << 				\
-			" Z:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x40) <<							\
-			" Y:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x20) <<							\
-			" H:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x10) <<							\
-			" X:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x08) <<							\
-			" P:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x04) <<							\
-			" N:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x02) <<							\
+		std::clog << "Flags: S:" << (state.Z_Z80_STATE_MEMBER_F & 0x80) <<
+			" Z:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x40) <<
+			" Y:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x20) <<
+			" H:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x10) <<
+			" X:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x08) <<
+			" P:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x04) <<
+			" N:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x02) <<
 			" C:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x01);
 		std::clog << std::endl;		
 	}
