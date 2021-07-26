@@ -23,8 +23,9 @@
 #include <cstring>
 #include <iostream>
 #include <iomanip>
+// #include <filesystem>
 
-#define LOG 1
+// #define LOG 1
 
 /**
  * CP/M File Control Block
@@ -59,62 +60,66 @@ struct __attribute__ ((packed)) FCB_t {
 // Set this to 0 when opening a file and then leave it to CP/M.
 	uint8_t RC;
 // Image of the second half of the directory entry, containing the file's allocation (which disc blocks it owns).
-	uint8_t AL;
+	uint8_t AL[16];
 // Current record within extent. It is usually best to set this to 0 immediately after a file has been opened and then ignore it.
 	uint8_t CR;
 // Random access record number (not CP/M 1). A 16-bit value in CP/M 2 (with R2 used for overflow); an 18-bit value in CP/M 3.
-	uint16_t RN;
+	uint8_t R[3];
 };
 
 
-
+template <unsigned MEMORY_SIZE>
 class BDos {
 public:
-
+	
 /**
  * BDOS functions.
  * C register contains the function value.
  * @see http://www.gaby.de/cpm/manuals/archive/cpm22htm/ch5.htm
  */	
-void function(ZZ80State& state, uint8_t *const memory) {
-	assert(memory);
-
-	std::clog << "DRIVE: " << int(drive) << " - ";
-	
-	switch (state.Z_Z80_STATE_MEMBER_C) {
-		case 0x01 : consoleInput(state); break;
-		case 0x02 : consoleOutput(state); break;
-		case 0x09 : printString(state, memory); break;
-		case 0x0A : readConsoleBuffer(state, memory); break;
-		case 0x0B : getConsoleStatus(state); break;
-		case 0x0D : resetDiskSystem(state); break;
-		case 0x0E : selectDisk(state); break;
-		case 0x0F : openFile(state, memory); break;
-		case 0x11 : searchForFirst(state, memory); break;
-		case 0x12 : searchForNext(state, memory); break;
-		case 0x19 : returnCurrentDisk(state); break;
-		case 0x1A : setDMAAddress(state); break;
-		case 0x20 : setGetUserCode(state); break;
+	void function(ZZ80State& state, uint8_t *const memory) {
+		assert(memory);
 		
-		default:
-			std::cerr << "Register C: " << std::hex << std::setw(2) << std::setfill('0') << unsigned(state.Z_Z80_STATE_MEMBER_C) << "h";
-			std::cerr << " : Unknown BDOS function!" << std::endl;
+		switch (state.Z_Z80_STATE_MEMBER_C) {
+			case 0x01 : consoleInput(state); break;
+			case 0x02 : consoleOutput(state); break;
+			case 0x09 : printString(state, memory); break;
+			case 0x0A : readConsoleBuffer(state, memory); break;
+			case 0x0B : getConsoleStatus(state); break;
+			case 0x0C : returnVersionNumber(state); break;
+			case 0x0D : resetDiskSystem(state, memory); break;
+			case 0x0E : selectDisk(state, memory); break;
+			case 0x0F : openFile(state, memory); break;
+			case 0x10 : closeFile(state, memory); break;
+			case 0x11 : searchForFirst(state, memory); break;
+			case 0x12 : searchForNext(state, memory); break;
+			case 0x13 : deleteFile(state, memory); break;
+			case 0x14 : readSequential(state, memory); break;
+			case 0x15 : writeSequential(state, memory); break;
+			case 0x16 : makeFile(state, memory); break;
+			case 0x19 : returnCurrentDisk(state, memory); break;
+			case 0x1A : setDMAAddress(state); break;
+			case 0x20 : setGetUserCode(state); break;
 			
-			throw std::runtime_error("Un-emulated BDOS function");
-			break;
+			default:
+				std::cerr << "Register C: " << std::hex << std::setw(2) << std::setfill('0') << unsigned(state.Z_Z80_STATE_MEMBER_C) << "h";
+				std::cerr << " : Unknown BDOS function!" << std::endl;
+				
+				throw std::runtime_error("Un-emulated BDOS function");
+				break;
+		}
 	}
-}
-
+	
 protected:
-	inline
-	void returnCode(ZZ80State& state, const uint16_t val) const  {
-		state.Z_Z80_STATE_MEMBER_HL = val;
-		state.Z_Z80_STATE_MEMBER_A = val & 0x00FF;
-		state.Z_Z80_STATE_MEMBER_B = val >> 8;
-	}
 	
-	void systemReset();
-	
+/**
+ * BDOS function 0
+ */
+ 	void systemReset();
+
+/**
+ * BDOS function 1
+ */
 	void consoleInput(ZZ80State& state) {
 		const auto c = std::cin.get();
 		returnCode(state, c);
@@ -143,16 +148,34 @@ protected:
 		returnCode(state, 0);
 	}		
 	
+/**
+ * BDOS function 3
+ */
 	void readerInput();
 	
+/**
+ * BDOS function 4
+ */
 	void punchOutput();
 	
+/**
+ * BDOS function 5
+ */
 	void listOutput();
 	
+/**
+ * BDOS function 6
+ */
 	void directConsoleIO();
 	
+/**
+ * BDOS function 7
+ */
 	void getIOByte();
 	
+/**
+ * BDOS function 8
+ */
 	void setIOByte();
 	
 /**
@@ -225,12 +248,15 @@ protected:
 		}
 	}
 	
+/**
+ * BDOS function 12
+ */
 	void returnVersionNumber(ZZ80State& state) {
 #if LOG
-		std::clog << "Version number" << std::endl;
+		std::clog << "Version number CP/M 2.2" << std::endl;
 #endif
-		returnCode(state, 0x0022);
-	};
+		returnCode(state, 0x0022);	// hard coded CPM 2.2
+	}
 	
 /**
  * BDOS function 13 (DRV_ALLRESET) - Reset discs
@@ -240,11 +266,11 @@ protected:
  * In versions 1 and 2, logs in drive A: and returns 0FFh if there is a file present whose name begins with a $, otherwise 0. Replacement BDOSses may modify this behaviour.
  * In multitasking versions, returns 0 if succeeded, or 0FFh if other processes have files open on removable or read-only drives. 
  */
-	void resetDiskSystem(ZZ80State& state) {
+	void resetDiskSystem(ZZ80State& state, uint8_t *const memory) {
 #if LOG
 		std::clog << "Reset drive ; default to A" << std::endl;
 #endif
-		drive = 0;
+		memory[DRIVE] = 0;
 		dma = 0x80;
 		returnCode(state, 0);
 	}
@@ -256,7 +282,7 @@ protected:
  * The drive number passed to this routine is 0 for A:, 1 for B: up to 15 for P:.
  * Sets the currently selected drive to the drive in A; logs in the disc. Returns 0 if successful or 0FFh if error. Under MP/M II and later versions, H can contain a physical error number. 
  */
- 	void selectDisk(ZZ80State& state) {
+ 	void selectDisk(ZZ80State& state, uint8_t *const memory) {
 		if (state.Z_Z80_STATE_MEMBER_E <= 15) {
 #if LOG
 			std::clog << "Select disc to " << char('A' + state.Z_Z80_STATE_MEMBER_E) << std::endl;
@@ -265,14 +291,14 @@ protected:
 			struct stat st;
 			const int err = stat(dir, &st);
 			if (!err) {
-				drive = state.Z_Z80_STATE_MEMBER_E;
+				memory[DRIVE] = state.Z_Z80_STATE_MEMBER_E;
 				returnCode(state, 0);
 				return;
 			}
 			state.Z_Z80_STATE_MEMBER_H = errno;
-			std::cerr << "Error selecting disk '" << char('A' + state.Z_Z80_STATE_MEMBER_E) << ":' " << strerror(errno) << "!" << std::endl;
+			std::cerr << ">> Error on path '" << char('A' + state.Z_Z80_STATE_MEMBER_E) << "/': " << strerror(errno) << "!" << std::endl;
 		} else {
-			std::cerr << "Invalid disk (A-P only)!" << std::endl;
+			std::cerr << ">> Invalid disk (A-P only)!" << std::endl;
 		}
 		returnCode(state, 0xFF);
 	}
@@ -298,8 +324,20 @@ protected:
 #if LOG
 		std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-//		std::cerr << "Open file " << pFCB->filename << '.' << pFCB->filetype << std::endl;
-		returnCode(state, 0xFF);
+		char filename[15];	// DIR + "/" + NAME + "." + EXT
+		fcbToFilename(pFCB, memory[DRIVE], filename);
+
+		std::fstream *const ps = getStream();
+		assert(ps);
+		ps->open(filename, std::ios::binary|std::ios::out|std::ios::in);
+		if (!(*ps)) {
+			std::cerr << ">> Error opening file '" << filename << "': " << strerror(errno) << "!" << std::endl;
+			returnCode(state, 0xFF);
+			releaseStream(ps);
+			return;
+		}
+		memcpy(pFCB->AL, &ps, sizeof(ps));
+		returnCode(state, 0x00);
 	}
 
 /**
@@ -311,15 +349,25 @@ protected:
  * Under CP/M 3, if F5' is set to 1 then the pending data are written and the file is made consistent, but it remains open.
  * If A=0FFh, CP/M 3 returns a hardware error in H and B.
  */
-/*
-		case 0x10 : {
-			std::clog << "BDOS - Close file " << std::hex << unsigned(DE) << "h" << std::endl;
-			std::clog << "!! Always success !!" << std::endl;
-			A = 0;
-			break;
-		 }
-*/
+ 	void closeFile(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+#if LOG
+		std::clog << "Close file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+#endif
+		std::fstream* ps;
+		memcpy(&ps, pFCB->AL, sizeof(ps));
+		assert(ps);
 
+		ps->close();
+		if (ps->is_open()) {
+			std::cerr << ">> Error closing file: " << strerror(errno) << "!" << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
+		}
+		
+		releaseStream(ps);
+		returnCode(state, 0x00);	// OK
+	}
 /**
  * BDOS function 17 (F_SFIRST) - search for first
  * Supported by: All versions
@@ -330,18 +378,17 @@ protected:
  */
 	void searchForFirst(ZZ80State& state, uint8_t *const memory) {
 		const FCB_t *const pFCB = reinterpret_cast<const FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : drive)), '\0' };
 #if LOG
 		std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
+		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : memory[DRIVE])), '\0' };
 
-// Init filter
 		memcpy(filter, pFCB->filename, 11);
 		filter[11] = '\0';
 		
 		pDir = opendir(dir);
 		if (pDir == NULL) {
-			std::cerr << "Can't open local dir /" << dir << std::endl;
+			std::cerr << ">> Error on path '/" << dir << "': " << strerror(errno) << "!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
@@ -367,18 +414,16 @@ protected:
  * In none of the official Programmer's Guides for any version of CP/M does it say that an FCB is required for Search Next (function 18). However, if the FCB passed to Search First contains an unambiguous file reference (i.e. no question marks), then the Search Next function requires an FCB passed in reg DE (for CP/M-80) or DX (for CP/M-86).
  */
 	void searchForNext(ZZ80State& state, uint8_t *const memory) {
-		
-		
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
 		if (pDir == NULL) {
-			std::cerr << "No search for first!" << std::endl;
+			std::cerr << ">> No search for first!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
-		
+
 		char filename[12];
 		if (findFile(pDir, filter, filename)) {
 			memory[dma] = pFCB->DR;
@@ -389,6 +434,47 @@ protected:
 			closedir(pDir);
 			pDir = NULL;
 		}
+	}
+
+/**
+ * BDOS function 19
+ */
+ 	void deleteFile(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : memory[DRIVE])), '\0' };
+#if LOG
+		std::clog << "Delete file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+#endif
+
+		char filter[12];
+		memcpy(filter, pFCB->filename, 11);
+		filter[11] = '\0';
+		
+		const auto pDir = opendir(dir);
+		if (pDir == NULL) {
+			std::cerr << ">> Error on path '/" << dir << "': " << strerror(errno) << "!" << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
+		}
+
+		char cpm[12];
+		unsigned nb = 0;
+		while (findFile(pDir, filter, cpm)) {
+			char dos[13];
+			filenameCPM2DOS(cpm, dos);
+	
+			char filename[15];
+			strcat(strcat(strcpy(filename, dir), "/"), dos);
+
+			if (remove(filename)) {	// error
+				std::cerr << ">> Error deleting file '" << filename << "': " << strerror(errno) << "!" << std::endl;
+				returnCode(state, 0xFF);
+				closedir(pDir);
+				return;
+			} else ++nb;
+		}
+		returnCode(state, nb ? 0x00 : 0xFF);
+		closedir(pDir);
 	}
 
 /**
@@ -404,28 +490,144 @@ protected:
  *  0FFh hardware error.
  * If on return A is not 0FFh, H contains the number of 128-byte records read before the error (MP/M II and later).
  */
- /*
-		case 0x14 : {
-			FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-			std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+ 	void readSequential(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
-			std::clog << "Read next record" << std::endl;
+		std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-			state.Z_Z80_STATE_MEMBER_A = 1;
-			break;
+		std::fstream* ps;
+		memcpy(&ps, pFCB->AL, sizeof(ps));
+		assert(ps);
+
+		if (dma + SECTOR_SIZE >= MEMORY_SIZE) {
+			std::cerr << ">> Writing DMA out of memory!" << std::endl;
+			returnCode(state, 0xFF);	// OK
+			return;
 		}
-*/
+		
+		ps->read(reinterpret_cast<char*>(memory + dma), SECTOR_SIZE);
+		if (*ps) {
+			returnCode(state, 0x00);	// OK
+		} else {
+			if (ps->eof()) {
+				if (ps->gcount()) {		// few read
+					memset(memory + ps->gcount(), '\0', SECTOR_SIZE - ps->gcount());	// padding with '\0'
+					returnCode(state, 0x00);	// OK
+				} else {
+					returnCode(state, 0x01);	// EOF
+				} 
+			} else {
+				std::cerr << ">> Error reading: " << strerror(errno) << "!" << std::endl;
+				
+				std::cerr << ">> " << ps->gcount() << " bytes read" << std::endl;
+				std::cerr << ">> good: " << ps->good() << std::endl;
+				std::cerr << ">> fail: " << ps->fail() << std::endl;
+				std::cerr << ">> bad: " << ps->bad() << std::endl;
+				std::cerr << ">> eof: " << ps->eof() << std::endl;
+				returnCode(state, 0xFF);	// OK
+			}
+		}
+		return;
+	}
+
+/**
+ * BDOS function 21
+ */
+	void writeSequential(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+#if LOG
+		std::clog << "Write next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+#endif
+		std::fstream* ps;
+		memcpy(&ps, pFCB->AL, sizeof(ps));
+		assert(ps);
+
+		if (dma + SECTOR_SIZE >= MEMORY_SIZE) {
+			std::cerr << ">> Reading DMA out of memory!" << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
+		}
+
+		try {
+			ps->write(reinterpret_cast<char*>(memory + dma), SECTOR_SIZE);
+		} catch (std::exception& e) {
+			std::cerr << ">> Error writing: " << strerror(errno) << "," << e.what() << "!" << std::endl;
+			
+			std::cerr << ">> " << ps->gcount() << " bytes wrote" << std::endl;
+			std::cerr << ">> good: " << ps->good() << std::endl;
+			std::cerr << ">> fail: " << ps->fail() << std::endl;
+			std::cerr << ">> bad: " << ps->bad() << std::endl;
+			std::cerr << ">> eof: " << ps->eof() << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
+		}
+		
+		if (!ps->good()) {
+			std::cerr << ">> Error writing: " << strerror(errno) << "!" << std::endl;
+			std::cerr << ">> good: " << ps->good() << std::endl;
+			std::cerr << ">> fail: " << ps->fail() << std::endl;
+			std::cerr << ">> bad: " << ps->bad() << std::endl;
+			std::cerr << ">> eof: " << ps->eof() << std::endl;
+			returnCode(state, 0xFF);	// KO
+			return;
+		}
+
+		returnCode(state, 0x00);	// OK
+	}
+	
+/**
+ * BDOS function 22
+ */ 
+	void makeFile(ZZ80State& state, uint8_t *const memory) {
+		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+#if LOG
+		std::clog << "Make file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
+#endif
+		char filename[15];	// DIR + "/" + NAME + "." + EXT
+		fcbToFilename(pFCB, memory[DRIVE], filename);
+		
+		auto s = std::ifstream(filename, std::ios_base::in);
+		if (s.is_open()) {	// Existing file
+			s.close();
+			std::cerr << ">> Error creating file '" << filename << "': Already existing file!" << std::endl;
+			returnCode(state, 0xFF);
+			return;						
+		}
+
+		std::fstream *const ps = getStream();
+		assert(ps);
+		ps->open(filename, std::ios::binary|std::ios::out|std::ios::in|std::ios::trunc);	// create if not exists
+		if (!(*ps)) {
+			std::cerr << ">> Error opening file '" << filename << "': " << strerror(errno) << "!" << std::endl;
+			returnCode(state, 0xFF);
+			releaseStream(ps);
+			return;
+		}
+
+		memcpy(pFCB->AL, &ps, sizeof(ps));
+		returnCode(state, 0x00);
+	}
+
+/**
+ * BDOS function 23
+ */ 
+ 	void renameFile(ZZ80State& state, uint8_t *const memory);
+ 	
+/**
+ * BDOS function 24
+ */ 
+ 	void returnLogicVector(ZZ80State& state, uint8_t *const memory);
 
 /**
  * BDOS function 25 (DRV_GET) - Return current drive
  * Supported by: All versions
  * Entered with C=19h. Returns drive in A. Returns currently selected drive. 0 => A:, 1 => B: etc.
  */
- 	void returnCurrentDisk(ZZ80State& state) {
+ 	void returnCurrentDisk(ZZ80State& state, uint8_t *const memory) {
 #if LOG
-		std::clog << "Get drive (" << drive << ')' << std::endl;
+		std::clog << "Get drive (" << char('A' + memory[DRIVE]) << ')' << std::endl;
 #endif
-		returnCode(state, drive);	// ok - drive numb.
+		returnCode(state, memory[DRIVE]);	// ok - drive numb.
 	}
 
 /**
@@ -442,6 +644,31 @@ protected:
 		returnCode(state, 0);	// OK
 	}
 		
+/**
+ * BDOS function 27
+ */
+	void getAddrAlloc(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 28
+ */
+	void writeProtectDisk(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 29
+ */
+	void getROVector(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 30
+ */
+	void setFileAttributes(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 31
+ */
+	void getAddrDiskParms(ZZ80State& state, uint8_t *const memory);
+	
 /**
  * BDOS function 32 (F_USERNUM) - get/set user number
  * Supported by: CP/M 2 and later.
@@ -464,8 +691,128 @@ protected:
 		}
 	}
 
+/**
+ * BDOS function 33
+ */
+	void readRandom(ZZ80State& state, uint8_t *const memory);
 
-	bool findFile(DIR *const pDir, const char filter[12], char filename[12]) {
+/**
+ * BDOS function 34
+ */
+	void writeRandom(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 35
+ */
+	void computeFileSize(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 36
+ */
+	void setRandomRecord(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 37
+ */
+	void resetDrive(ZZ80State& state, uint8_t *const memory);
+
+/**
+ * BDOS function 40
+ */
+	void writeRandomWithZeroFill(ZZ80State& state, uint8_t *const memory);
+
+
+
+/**
+ * Return a free fstream ans set it as occuped.
+ * @return a reference on a free fstream.
+ */
+	std::fstream *const getStream() {
+		for (auto i = 0; i < 10; ++i) {
+			if (fileStream[i] == NULL) {
+				fileStream[i] = new std::fstream;
+				return fileStream[i];
+			}
+		}
+		std::cerr << "Can't get another stream in BDOS::getStream!" << std::endl;
+		throw(std::runtime_error("Can't get another stream in BDOS::getStream!"));
+	}
+	
+/**
+ * Release the fstream sent.
+ * @param sStream a fstream to be released.
+ */
+	void releaseStream(const std::fstream *const apStream) {
+		assert(apStream);
+		for (auto i = 0; i < 10; ++i) {
+			if (apStream == fileStream[i]) {
+				delete fileStream[i];
+				fileStream[i] = NULL;
+				return;
+			}
+		}
+		std::cerr << "Can't release this stream in BDOS::getStream!" << std::endl;
+		throw(std::runtime_error("Can't release this stream in BDOS::getStream!"));
+	}
+ 
+ 
+ 
+
+	inline
+	void returnCode(ZZ80State& state, const uint16_t hl) const  {
+		state.Z_Z80_STATE_MEMBER_HL = hl;
+		state.Z_Z80_STATE_MEMBER_A = state.Z_Z80_STATE_MEMBER_L;
+		state.Z_Z80_STATE_MEMBER_B = state.Z_Z80_STATE_MEMBER_H;
+	}
+
+	inline
+	void returnCode(ZZ80State& state, const uint8_t a, const uint8_t b) const  {
+		state.Z_Z80_STATE_MEMBER_L = state.Z_Z80_STATE_MEMBER_A = a;
+		state.Z_Z80_STATE_MEMBER_H = state.Z_Z80_STATE_MEMBER_B = b;
+	}
+
+	void filenameCPM2DOS(const char cpm[11], char dos[]) const {
+		char name[9];
+		memcpy(name, cpm, 8);
+		name[8] = '\0';
+		
+		for (auto i = 7; (i >= 0) && (name[i] == ' '); --i) name[i] = '\0';
+		strcpy(dos, name);
+		
+		char ext[4];
+		memcpy(ext, cpm + 8, 3);
+
+		if (ext[2] == ' ') {
+			if (ext[1] == ' ') {
+				if (ext[0] == ' ') return;	// no ext
+				ext[1] = '\0';
+			} else ext[2] = '\0';
+		} else ext[3] = '\0';
+		strcat(strcat(dos, "."), ext);
+	}
+
+	bool filenameDOS2CPM(const char dos[], char cpm[11]) const {
+		char f[11];
+		memset(f, ' ', 11);
+
+		const auto p = strchr(dos, '.');
+		const auto l = p ? p - dos : strlen(dos);
+		if (l > 8) return false;	// Invalid CPM name
+		for (auto i = 0; i < l; ++i) {
+			f[i] = toupper(dos[i]);
+		}
+		if (p) {
+			const auto l = strlen(dos) - (p - dos + 1);
+			if (l > 3) return false;
+			for (auto i = 0; i < l; ++i) {
+				f[8 + i] = toupper(p[i + 1]);
+			}
+		}
+		memcpy(cpm, f, 11);
+		return true;
+	}
+
+	bool findFile(DIR *const pDir, const char filter[12], char filename[12]) const {
 		struct dirent* pEnt;
 		while (true) {
 			auto* pEnt = readdir(pDir);
@@ -476,28 +823,9 @@ protected:
 				
 			if ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) continue;	// "." & ".."
 
-			if (strchr(pEnt->d_name, '.')) {		// with dot in name
-				if (strlen(pEnt->d_name) > 12) continue;	// > 12 char --> CPM invalid
-				if ((strchr(pEnt->d_name, '.') - pEnt->d_name) > 8) continue;	// name > 8 char --> CPM invalid
-			} else {
-				if (strlen(pEnt->d_name) > 8) continue;	// name > 8 char --> CPM invalid
-			}
-			
-			memset(filename, ' ', 11);
+			if (!filenameDOS2CPM(pEnt->d_name, filename)) continue;	// invalide CPM name
 			filename[11] = '\0';
 
-			const auto p = strchr(pEnt->d_name, '.');
-			const auto l = p ? p - pEnt->d_name : strlen(pEnt->d_name);
-			for (auto i = 0; i < l; ++i) {
-				filename[i] = toupper(pEnt->d_name[i]);
-			}
-			if (p) {
-				const auto l = strlen(pEnt->d_name) - (p - pEnt->d_name + 1);
-				for (auto i = 0; i < l; ++i) {
-					filename[8 + i] = toupper(p[i + 1]);
-				}
-			}
-			
 			bool ok = true;
 			for (auto i = 0; i < 11; ++i) {
 				if ((filter[i] != '?') && (filter[i] != filename[i])) {
@@ -510,36 +838,52 @@ protected:
 			return true;
 		}
 	}
+	
+	void fcbToFilename(const FCB_t *const pFCB, const unsigned char drive, char path[15]) const {
+		// filename[15];	// DIR + "/" + NAME + "." + EXT
 
+		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : drive)), '\0' };
 
-
-
+		char filename[13];
+		filenameCPM2DOS(pFCB->filename, filename);
+		strcat(strcat(strcpy(path, dir), "/"), filename);
+	}
 
 private:
+
+	static const auto SECTOR_SIZE = 128;
+
 /**
- * Cuurent drive.
+ * Current drive.
  */
-	uint8_t drive;
+//	uint8_t drive = 0;	// A
+	static const auto DRIVE = 4;
 
 /**
  * DMA's address.
  */
-	uint16_t dma;
+	uint16_t dma = 128;
 
 /**
  * Current user.
  */
-	uint8_t user;
+	uint8_t user = 0;
 
 /**
  * Scanning a path.
  */
-	DIR* pDir;
+	DIR* pDir = NULL;
 
 /**
  * Filter used during scanning a path.
  */
-	char filter[12];
+	char filter[12] = "";
+	
+/**
+ * List of available fstream.
+ */
+	std::fstream* fileStream[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+
 
 };
 
