@@ -32,6 +32,7 @@
 #define S__LINE__ S_(__LINE__)
 
 // #define LOG 1
+// #undef LOG
 
 /**
  * @see http://www.cpm.z80.de/manuals/cpm22-m.pdf
@@ -126,31 +127,30 @@ public:
 		
 		std::cout << "CPM 2.2 Emulator - Copyright (c) 2021 by M. Sibert" << std::endl;
 		std::cout << std::endl;
-		
-		memory[0x0006] = 0x00; 
-		memory[0x0007] = 0x3C; 
-		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x80 + 128; // TBUFF + 80h
-		cpu.state.Z_Z80_STATE_MEMBER_C = 0;	// Default user 0xF0 & Default disk 0x0F
 	}
 		
 	void load(const std::string& aFile, const uint16_t aAddr=0x0100) {
 		assert(!aFile.empty());
 		
 		auto fs = std::ifstream(aFile, std::ios_base::binary | std::ios_base::in);
-		fs.exceptions(std::fstream::badbit);
+//		fs.exceptions(std::fstream::badbit);
 		if (fs) {
 //			std::clog << "Loading " << aFile << "... ";
 			auto addr = aAddr;
 			while (fs.good()) {
 				const uint8_t c = fs.get();
 				if (!fs.eof()) {
+					if (addr >= MEMORY_SIZE * 1024) {
+						std::cerr << ">> Writing out of memory: " << addr << std::endl;
+						throw std::runtime_error("Writing out of memory");
+					}
 					memory[addr++] = c;
 				}
 			}
 			fs.close();
 //			std::clog << addr - aAddr << " bytes read." << std::endl;
 		} else {
-			std::cerr << "Error opening file \"" << aFile << "\"" << std::endl;
+			std::cerr << ">> Error opening file \"" << aFile << "\"" << std::endl;
 			throw std::runtime_error("Error opening file");
 		}
 	}
@@ -158,32 +158,41 @@ public:
 	void run(const uint16_t aAddr=0x0100) {
 		cpu.state.Z_Z80_STATE_MEMBER_PC = aAddr;
 		while (true) {
+			if (cpu.state.Z_Z80_STATE_MEMBER_PC >= MEMORY_SIZE * 1024) {
+				std::cerr << ">> Executing out of memory!" << std::endl;
+				throw std::runtime_error("Executing out of memory!");
+			}
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
-				logSpecAddr(cpu.state);
-				break;
+//				logSpecAddr(cpu.state);
+				reset(cpu.state);
+				continue;
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0003) {	// Warm boot
-				logSpecAddr(cpu.state);
-				break;
+//				logSpecAddr(cpu.state);
+				warmBoot(cpu.state);
+				continue;
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
+#ifdef LOG
 				logSpecAddr(cpu.state);
+#endif
 				bdos.function(cpu.state, memory);
 				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
 				continue;
 			}
-			
+/*			
 			if (verifInstruction(cpu.state)) {
 				logSpecAddr(cpu.state);
 				continue;
 			}
-#ifdef LOG				
-//			logSpecAddr(cpu.state);
-//			logInst(cpu.state);
+*/			
+#ifdef LOG
+			logSpecAddr(cpu.state);
+			logInst(cpu.state);
 #endif
 			z80_run(&cpu, 1);	// return cycles
 		}
@@ -195,9 +204,9 @@ public:
 	static constexpr uint16_t BIAS = 0xA800;			// 64k -> B000
 	
 /**
- * Full memory size (can't by over 64Ko)
+ * Full memory size (can't be over 64Ko)
  */	
-	static constexpr uint16_t MEMORY_SIZE = 62;	// Ko
+	static constexpr uint16_t MEMORY_SIZE = 64;	// Ko
 
 protected:
 	
@@ -256,26 +265,31 @@ protected:
 	void logSpecAddr(const ZZ80State& state) const {
 		const uint16_t addr = state.Z_Z80_STATE_MEMBER_PC;
 		switch (addr) {
-			case 0x0005 : std::clog << std::hex << std::setw(4) << addr << " ; BDOS function #" << std::dec << int(state.Z_Z80_STATE_MEMBER_C) << " - "; break;
-			case 0xDC8C : std::clog << std::hex << std::setw(4) << addr << " ; Routine Print" << std::endl; break;
+			case 0x0000 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; R E S E T   !" << std::endl; break;
+			case 0x0003 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; W A R M   B O O T  !" << std::endl; break;
+			case 0x0005 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; BDOS function #" << std::dec << int(state.Z_Z80_STATE_MEMBER_C) << " - "; break;
+			case 0x0100 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; S T A R T   T H E   P R O G R A M --------------------------------------" << std::endl; break;
+
+// Pour CCP
+			case 0xDC8C : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Routine Print" << std::endl; break;
 //			case 0xDC92 : std::clog << "; Routine Print / save BC" << std::endl; break;
 //			case 0xDC98 : std::clog << "; Routine Print CR/LF" << std::endl; break;
 //			case 0xDCA2 : std::clog << "; Routine Print Space" << std::endl; break;
 //			case 0xDCA7 : std::clog << "; Routine Print Line" << std::endl; break;
-			case 0xDCB8 : std::clog << std::hex << std::setw(4) << addr << " ; Routine Reset disk" << std::endl; break;
-			case 0xDCBD : std::clog << std::hex << std::setw(4) << addr << " ; Routine Select disk" << std::endl; break;
-			case 0xDCC3 : std::clog << std::hex << std::setw(4) << addr << " ; Routine Call bdos & save return" << std::endl; break;
-			case 0xDCCB : std::clog << std::hex << std::setw(4) << addr << " ; Routine Open file (DE) point FCB" << std::endl; break;
-			case 0xDDA7 : std::clog << std::hex << std::setw(4) << addr << " ; Convert input line to upper case." << std::endl; break;
-			case 0xDE09 : std::clog << std::hex << std::setw(4) << addr << " ; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
+			case 0xDCB8 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Routine Reset disk" << std::endl; break;
+			case 0xDCBD : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Routine Select disk" << std::endl; break;
+			case 0xDCC3 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Routine Call bdos & save return" << std::endl; break;
+			case 0xDCCB : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Routine Open file (DE) point FCB" << std::endl; break;
+			case 0xDDA7 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Convert input line to upper case." << std::endl; break;
+			case 0xDE09 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Print back file name with a '?' to indicate a syntax error." << std::endl; break;
 //			case 0xDE30 : std::clog << "; Check character at (DE) for legal command input. Note that the zero flag is set if the character is a delimiter." << std::endl; break;
-			case 0xDE4F : std::clog << std::hex << std::setw(4) << addr << " ; Get the next non-blank character from (DE)." << std::endl; break;
-			case 0xDE5E : std::clog << std::hex << std::setw(4) << addr << " ; Convert the first name in (FCB)." << std::endl; break;
-			case 0xDE96 : std::clog << std::hex << std::setw(4) << addr << " ; Convert the basic file name." << std::endl; break;
-			case 0xDEC0 : std::clog << std::hex << std::setw(4) << addr << " ; Get the extension and convert it." << std::endl; break;
-			case 0xDEFE : std::clog << std::hex << std::setw(4) << addr << " ; Check to see if this is an ambigeous file name specification." << std::endl; break;
-			case 0xDF2E : std::clog << std::hex << std::setw(4) << addr << " ; Search the command table for a match with what has just been entered." << std::endl; break;
-			case 0xDF5C : std::clog << std::hex << std::setw(4) << addr << " ; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
+			case 0xDE4F : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Get the next non-blank character from (DE)." << std::endl; break;
+			case 0xDE5E : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Convert the first name in (FCB)." << std::endl; break;
+			case 0xDE96 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Convert the basic file name." << std::endl; break;
+			case 0xDEC0 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Get the extension and convert it." << std::endl; break;
+			case 0xDEFE : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Check to see if this is an ambigeous file name specification." << std::endl; break;
+			case 0xDF2E : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; Search the command table for a match with what has just been entered." << std::endl; break;
+			case 0xDF5C : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r" << std::endl; break;
 /*			case 0xdfc0 : 
 				for (unsigned i = 0xDFC1; i <= 0xDFCF; ++i) {
 					std::clog << std::hex << std::setw(2) << int(memory[i])<< " ";
@@ -283,12 +297,12 @@ protected:
 				std::clog << std::endl;
 				break;
 */
-			case 0xE054 : std::clog << std::hex << std::setw(4) << addr << " ;  Check drive specified. If it means a change, then the new drive will be selected. In any case, the drive byte of the fcb will be set to null (means use current drive)." << std::endl; break;
-			case 0xE066 : std::clog << std::hex << std::setw(4) << addr << " ;  Check the drive selection and reset it to the previous drive if it was changed for the preceeding command." << std::endl; break;
-			case 0xE077 : std::clog << std::hex << std::setw(4) << addr << " ; D I R E C T O R Y   C O M M A N D" << std::endl; break;
-			case 0xE210 : std::clog << std::hex << std::setw(4) << addr << " ; R E N A M E   C O M M A N D" << std::endl; break;
-			case 0xE28E : std::clog << std::hex << std::setw(4) << addr << " ; U S E R   C O M M A N D" << std::endl; break;
-			case 0xE2A5 : std::clog << std::hex << std::setw(4) << addr << " ; T R A N S I A N T   P R O G R A M   C O M M A N D" << std::endl; break;
+			case 0xE054 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ;  Check drive specified. If it means a change, then the new drive will be selected. In any case, the drive byte of the fcb will be set to null (means use current drive)." << std::endl; break;
+			case 0xE066 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ;  Check the drive selection and reset it to the previous drive if it was changed for the preceeding command." << std::endl; break;
+			case 0xE077 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; D I R E C T O R Y   C O M M A N D" << std::endl; break;
+			case 0xE210 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; R E N A M E   C O M M A N D" << std::endl; break;
+			case 0xE28E : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; U S E R   C O M M A N D" << std::endl; break;
+			case 0xE2A5 : std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << " ; T R A N S I A N T   P R O G R A M   C O M M A N D" << std::endl; break;
 
 // Pour zexdoc.com
 			case 0x1dce : std::clog << "; PUSHs, call BDOS, POPs" << std::endl; break;
@@ -296,6 +310,12 @@ protected:
 			case 0x1ae2 : std::clog << "; stt: Start Test pointed by (HL)" << std::endl; break;
 			case 0x1c38 : std::clog << "; clrmem: clear memory at hl, bc bytes" << std::endl; break;
 			case 0x1c49 : std::clog << "; initmask: initialise counter or shifter (DE & HL)" << std::endl; break;
+
+
+// Pour MBASIC
+			case 0x5d8c	: std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "; INIT: (INIT.MAC)" << std::endl;
+			case 0x5dd8	: std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "; Check CP/M version number (INIT.MAC)" << std::endl;
+
 		}
 	}
 	
@@ -547,6 +567,32 @@ protected:
 				break;
 			}
 			
+			case 0x90 :
+			case 0x91 :
+			case 0x92 :
+			case 0x93 :
+			case 0x94 :
+			case 0x95 :
+			case 0x96 :
+			case 0x97 : {	// SUB A,r
+				logAddrInst(PC, inst);
+				std::clog << "SUB A," << rName(inst) << std::endl;
+				break;
+			}
+			
+			case 0x98 :
+			case 0x99 :
+			case 0x9A :
+			case 0x9B :
+			case 0x9C :
+			case 0x9D :
+			case 0x9E :
+			case 0x9F : {	// SBC A,s
+				logAddrInst(PC, inst);
+				std::clog << "SBC A," << rName(inst) << std::endl;
+				break;
+			}
+			
 			case 0xA0 :
 			case 0xA1 :
 			case 0xA2 :
@@ -750,6 +796,12 @@ protected:
 				break;
 			}
 
+			case 0xE3 : { 	// ex (sp),hl
+				logAddrInst(PC, inst);
+				std::clog << "EX (SP),HL" << std::endl;
+				break;
+			}
+
 			case 0xE6 : { // AND n
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
@@ -848,6 +900,7 @@ protected:
 				logAddrInst(PC, inst, v);
 				std::clog << "CP " << std::dec << unsigned(v);
 				if (v >= ' ') std::clog << " '" << char(v) << "'";
+				else std::clog << " " << std::dec << unsigned(v);
 				std::clog << std::endl;
 				break;
 			}
@@ -1027,6 +1080,36 @@ protected:
 		return false;
 	}
 	
+/**
+ * Reset computer set all low-memory values & lauche warm boot
+ */
+	void reset(ZZ80State& state) {
+		// COLD BOOT
+		memory[0x0000] = 0xC3;			// JUMP
+		memory[0x0001] = BIAS & 0xFF;	// BIAS (LL)
+		memory[0x0002] = BIAS >> 8;		// BIAS (HH)
+
+		memory[0x0004] = 0;		// Default drive: 0=A
+		
+		// WARM BOOT
+		memory[0x0005] = 0xC3;			// JUMP
+		memory[0x0006] = BIAS & 0xFF;	// BIAS (LL)
+		memory[0x0007] = BIAS >> 8;		// BIAS (HH)
+		
+		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x80 + 128; // TBUFF + 80h
+		cpu.state.Z_Z80_STATE_MEMBER_C = 0;	// Default user 0xF0 & Default disk 0x0F
+
+		warmBoot(state);
+	}
+	
+/**
+ * Lauch & run CP/M CCP
+ */
+	void warmBoot(ZZ80State& state) {
+		load("CPM.SYS", 0x3400 + Computer::BIAS);
+		state.Z_Z80_STATE_MEMBER_PC = 0x3400 + Computer::BIAS;
+	}
+	
 private:
 /**
  * Z80 processor 
@@ -1043,6 +1126,6 @@ private:
 /**
  * BDOS functions & variables
  */
- 	BDos bdos;
+ 	BDos<MEMORY_SIZE * 1024> bdos;
 };
 
