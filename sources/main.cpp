@@ -18,7 +18,7 @@
 #include <fstream>
 #include <exception>
 
-// #define LOG		1
+#define LOG		1
 
 #include "computer.h"
 
@@ -34,14 +34,17 @@ int main(int argc, char** argv) {
 	
 	try {
 		computer.init();
-		if (argc == 1) {	// no arg.
-			computer.load("CPM.SYS", 0x3400 + Computer::BIAS);
-			computer.run(0x3400 + Computer::BIAS);		
-		} else if (argc == 2) {
-			computer.load(argv[1]);
-			computer.run();
+		switch (argc) {
+			case 1:
+				computer.run(0x0000);
+				break;
+			case 2:
+				computer.load(argv[1]);
+				computer.run(0x0100);
+				break;
+			default:
+				std::cerr << "Invalid number of arguments!" << std::endl;
 		}
-		return 0;
 	} catch (std::exception& e) {
 		std::cerr << "Exception " << e.what() << std::endl;
 		return 1;
