@@ -389,10 +389,13 @@ protected:
 			case 0x26 : 
 			case 0x2E : 
 			case 0x36 : 
-			case 0x3E : {	// LD r,n & LD (HL),n
-				const uint8_t n = memory[PC+1];
-				logAddrInst(PC, inst, n);
-				std::clog << "LD " << rName(inst >> 3) << ',' << std::dec << unsigned(n) << std::endl;
+			case 0x3E : {	// LD r,n
+				const uint8_t v = memory[PC+1];
+				logAddrInst(PC, inst, v);
+				std::clog << "LD " << rName(inst >> 3) << ',' << std::dec << unsigned(v);
+				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				std::clog << std::endl;
+				
 	  			break;
 			}
 
@@ -714,7 +717,9 @@ protected:
 			case 0xC6 : { // ADD A,n
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
-				std::clog << "ADD A," << std::dec << unsigned(v) << std::endl;
+				std::clog << "ADD A," << std::dec << unsigned(v);
+				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				std::clog << std::endl;
 				break;
 			}
 
@@ -731,10 +736,12 @@ protected:
 				break;
 			}
 	
-			case 0xD6 : { // SUB nn
+			case 0xD6 : { // SUB n
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
-				std::clog << "SUB " << std::dec << unsigned(v) << std::endl;
+				std::clog << "SUB " << std::dec << unsigned(v);
+				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				std::clog << std::endl;
 				break;
 			}
 
@@ -789,7 +796,7 @@ protected:
 			}
 */	
 
-			case 0xDE :{
+			case 0xDE : {
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "SBC A," << std::dec << unsigned(v) << std::endl;
@@ -805,7 +812,9 @@ protected:
 			case 0xE6 : { // AND n
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
-				std::clog << "AND " << std::dec << unsigned(v) << std::endl;
+				std::clog << "AND " << std::dec << unsigned(v);
+				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				std::clog << std::endl;
 				break;
 			}
 	
@@ -835,7 +844,9 @@ protected:
 			case 0xF6 : { // OR n
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
-				std::clog << "OR " << std::dec << unsigned(v) << std::endl;
+				std::clog << "OR " << std::dec << unsigned(v);
+				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				std::clog << std::endl;
 				break;
 			}
 	
@@ -861,8 +872,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "CP " << std::dec << unsigned(v);
-				if (v >= ' ') std::clog << " '" << char(v) << "'";
-				else std::clog << " " << std::dec << unsigned(v);
+				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
