@@ -113,12 +113,18 @@ public:
 protected:
 	
 /**
- * BDOS function 0
+ * BDOS function 0 (P_TERMCPM) - System Reset
+ * Supported by: CP/M 1, 2, 3; MP/M; Concurrent CP/M.
+ * Entered with C=0. Does not return.
+ * Quit the current program, return to command prompt. This call is hardly ever used in 8-bit CP/M since the RST 0 instruction does the same thing and saves four bytes.
  */
  	void systemReset();
 
 /**
- * BDOS function 1
+ * BDOS function 1 (C_READ) - Console input
+ * Supported by: All versions
+ * Entered with C=1. Returns A=L=character.
+ * Wait for a character from the keyboard; then echo it to the screen and return it.
  */
 	void consoleInput(ZZ80State& state) {
 		const auto c = std::cin.get();
@@ -149,17 +155,26 @@ protected:
 	}		
 	
 /**
- * BDOS function 3
+ * BDOS function 3 (A_READ) - Auxiliary (Reader) input
+ * Supported by: All CP/M versions except MP/M and Concurrent CP/M
+ * Entered with C=3. Returns A=L=ASCII character
+ * Note that this call can hang if the auxiliary input never sends data.
  */
 	void readerInput();
 	
 /**
- * BDOS function 4
+ * BDOS function 4 (A_WRITE) - Auxiliary (Punch) output
+ * Supported by: All versions except MP/M and Concurrent CP/M.
+ * Entered with C=4, E=ASCII character.
+ * If the device is permanently not ready, this call can hang.
  */
 	void punchOutput();
 	
 /**
- * BDOS function 5
+ * BDOS function 5 (L_WRITE) - Printer output
+ * Supported by: All versions
+ * Entered with C=2, E=ASCII character.
+ * If the printer is permanently offline or busy, this call can hang.
  */
 	void listOutput();
 	
@@ -576,7 +591,15 @@ protected:
 	}
 	
 /**
- * BDOS function 22
+ * BDOS function 22 (F_MAKE) - create file
+ * Supported by: All versions
+ * Entered with C=16h, DE=address of FCB. Returns error codes in BA and HL.
+ * Creates the file specified. Returns A=0FFh if the directory is full.
+ * If the file exists already, then the default action is to return to the command prompt, but CP/M 3 may return a hardware error instead.
+ * Under MP/M II, set F5' to open the file in "unlocked" mode.
+ * Under MP/M II and later versions, set F6' to create the file with a password; the DMA address should point at a 9-byte buffer:
+ *  DEFS    8   ; Password
+ *  DEFB    1   ; Password mode
  */ 
 	void makeFile(ZZ80State& state, uint8_t *const memory) {
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
@@ -609,12 +632,20 @@ protected:
 	}
 
 /**
- * BDOS function 23
+ * BDOS function 23 (F_RENAME) - Rename file
+ * Supported by: All versions
+ * Entered with C=17h, DE=address of FCB. Returns error codes in BA and HL.
+ * Renames the file specified to the new name, stored at FCB+16. This function cannot rename across drives so the "drive" bytes of both filenames should be identical. Returns A=0-3 if successful; A=0FFh if error. Under CP/M 3, if H is zero then the file could not be found; if it is nonzero it contains a hardware error number.
+ * Under Concurrent CP/M, set F5' if an extended lock on the file should be held through the rename. Otherwise the lock will be released.
  */ 
  	void renameFile(ZZ80State& state, uint8_t *const memory);
  	
 /**
- * BDOS function 24
+ * BDOS function 24 (DRV_LOGINVEC) - Return bitmap of logged-in drives
+ * Supported by: All versions
+ * Entered with C=18h. Returns bitmap in HL.
+ * Bit 7 of H corresponds to P: while bit 0 of L corresponds to A:. A bit is set if the corresponding drive is logged in.
+ * In DOSPLUS v2.1, the three top bits (for the floating drives) will mirror the status of the corresponding host drives). This does not happen in earlier DOSPLUS / Personal CP/M-86 systems.
  */ 
  	void returnLogicVector(ZZ80State& state, uint8_t *const memory);
 
@@ -645,27 +676,48 @@ protected:
 	}
 		
 /**
- * BDOS function 27
+ * BDOS function 27 (DRV_ALLOCVEC) - Return address of allocation map
+ * Supported by: All versions, but differs in banked versions.
+ * Entered with C=1Bh. Returns address in HL (16-bit versions use ES:BX).
+ * Return the address of the allocation bitmap (which blocks are used and which are free) in HL. Under banked CP/M 3 and MP/M, this will be an address in bank 0 (the system bank) and not easily accessible.
+ * Under previous versions, the format of the bitmap is a sequence of bytes, with bit 7 of the byte representing the lowest-numbered block on disc, and counting starting at block 0 (the directory). A bit is set if the corresponding block is in use.
+ * Under CP/M 3, the allocation vector may be of this form (single-bit) or allocate two bits to each block (double-bit). This information is stored in the SCB.
  */
 	void getAddrAlloc(ZZ80State& state, uint8_t *const memory);
 
 /**
- * BDOS function 28
+ * BDOS function 28 (DRV_SETRO) - Software write-protect current disc
+ * Supported by: All versions, with differences
+ * Entered with C=1Ch.
+ * Temporarily set current drive to be read-only; attempts to write to it will fail. Under genuine CP/M systems, this continues until either call 13 (disc reset) or call 37 (selective disc reset) is called; in practice, this means that whenever a program returns to the command prompt, all drives are reset to read/write. Newer BDOS replacements only reset the drive when function 37 is called.
+ * Under multitasking CP/Ms, this can fail (returning A=0FFh) if another process has a file open on the drive.
  */
 	void writeProtectDisk(ZZ80State& state, uint8_t *const memory);
 
 /**
- * BDOS function 29
+ * BDOS function 29 (DRV_ROVEC) - Return bitmap of read-only drives
+ * Supported by: All versions
+ * Entered with C=1Dh. Returns bitmap in HL.
+ * Bit 7 of H corresponds to P: while bit 0 of L corresponds to A:. A bit is set if the corresponding drive is set to read-only in software.
  */
 	void getROVector(ZZ80State& state, uint8_t *const memory);
 
 /**
- * BDOS function 30
+ * BDOS function 30 (F_ATTRIB) - set file attributes
+ * Supported by: All versions
+ * Entered with C=1Eh, DE=address of FCB. Returns error codes in BA and HL.
+ * Set and reset the bits required. Standard CP/M versions allow the bits F1', F2', F3', F4', T1' (read-only), T2' (system) and T3' (archive) to be changed. Some alternative BDOSses allow F5', F6', F7' and F8' to be set, but this is not to be encouraged since setting these bits can cause CP/M 3 to behave differently.
+ * Under Concurrent CP/M, if the F5' bit is not set and the file has an extended file lock, the lock will be released when the attributes are set. If F5' is set the lock stays.
+ * Under CP/M 3, the Last Record Byte Count is set by storing the required value at FCB+32 (FCB+20h) and setting the F6' bit.
+ * The code returned in A is 0-3 if the operation was successful, or 0FFh if there was an error. Under CP/M 3, if A is 0FFh and H is nonzero, H contains a hardware error.
  */
 	void setFileAttributes(ZZ80State& state, uint8_t *const memory);
 
 /**
- * BDOS function 31
+ * BDOS function 31 (DRV_DPB) - get DPB address
+ * Supported by: CP/M 2 and later.
+ * Entered with C=1Fh. Returns address in HL.
+ * Returns the address of the Disc Parameter Block for the current drive. See the formats listing for details of the DPBs under various CP/M versions.
  */
 	void getAddrDiskParms(ZZ80State& state, uint8_t *const memory);
 	
