@@ -179,17 +179,34 @@ protected:
 	void listOutput();
 	
 /**
- * BDOS function 6
+ * BDOS function 6 (C_RAWIO) - Direct console I/O
+ * Supported by: CP/M 1.4 and later, with variations
+ * Entered with C=6, E=code. Returned values (in A) vary.
+ *	E=0FFh
+ *		Return a character without echoing if one is waiting; zero if none is available. In MP/M 1, this works like E=0FDh below and waits for a character.
+ *	E=0FEh
+ *		[CP/M3, NovaDOS, Z80DOS, DOS+] Return console input status. Zero if no character is waiting, nonzero otherwise.
+ *	E=0FDh
+ *		[CP/M3, DOS+] Wait until a character is ready, return it without echoing.
+ *	E=0FCh
+ *		[DOS+] One-character lookahead - return the next character waiting but leave it in the buffer.
+ * Values of E not supported on a particular system will output the character. Under CP/M 2 and lower, direct console functions may interact undesirably with non-direct ones, since certain buffers may be bypassed. Do not mix them.
  */
 	void directConsoleIO();
 	
 /**
- * BDOS function 7
+ * BDOS function 7 - Get I/O byte
+ * Supported by: CP/M 2 and lookalikes. Not supported in MP/M.
+ * Entered with C=7. Returns I/O byte.
+ * Here's a description of how the IOBYTE works. @see https://seasip.info/Cpm/iobyte.html
  */
 	void getIOByte();
 	
 /**
- * BDOS function 8
+ * BDOS function 8 - Set I/O byte
+ * Supported by: CP/M 2 and lookalikes. Not supported in MP/M.
+ * Entered with C=8, E=I/O byte.
+ * Here's a description of how the IOBYTE works.
  */
 	void setIOByte();
 	
@@ -264,7 +281,25 @@ protected:
 	}
 	
 /**
- * BDOS function 12
+ * BDOS function 12 (S_BDOSVER) - Return version number
+ * Supported by: Versions 2.0 and later
+ * Entered with C=0Ch. Returns B=H=system type, A=L=version number.
+ * The system type is subdivided into a machine type and a CP/M type. The machine type occupies the high nibble of the byte; the CP/M type is a bitmapped field stored in the low nibble.
+ *	Machine types:		CP/M types:				Version numbers:
+ *	0 - 8080			Bit 0 set for MP/M		00h - Version 1 (see Lift Head above)
+ *	1 - 8086			Bit 1 set for CP/Net	20h - Version 2.0
+ *	2 - 68000/Z8000		(ie:network present)	21h - Version 2.1
+ *						Bit 2 set in 16-bit		22h - Version 2.2 
+ *						multi-user OSes			25h - Version 2.5 (DOS +)
+ *												28h - Version 2.8 (Personal CP/M-80)
+ *						For plain CP/M,			30h - Version 3.0 (MP/M II, MP/M-86)
+ *						the CP/M type is 0.		31h - Version 3.1 (CP/M Plus)
+ * 												33h - Version 3.3 (Apricot PCP/M-86)
+ *												41h - Version 4.1 (DOSPLUS 1)
+ *												50h - Version 5.0 (DOSPLUS 2)
+ * Sources differ on the value returned by DOSPLUS 2. Most sources follow the Interrupt List and say 60h; my experiments on the real thing say 50h.
+ * Confusingly, CP/M-86 v1.1 returns 0022h (ie, "8080 CP/M v2.2").
+ * It is interesting to note that the version numbers returned by DRDOS and Novell DOS follow this system; DRDOS 3, 5 and 6 are version 6.x, Novell DOS 7 is version 7.2 and DR-OpenDOS is version 7.3. However these systems rather unsportingly fail to provide an INT 0E0h call to get the version number; you have to use INT 21h with AX=4452h.
  */
 	void returnVersionNumber(ZZ80State& state) {
 #if LOG
