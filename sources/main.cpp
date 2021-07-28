@@ -22,8 +22,6 @@
 
 #include "computer.h"
 
-Computer computer;
-
 int main(int argc, char** argv) {
 	
 #ifdef LOG
@@ -33,6 +31,7 @@ int main(int argc, char** argv) {
 #endif
 	
 	try {
+		Computer computer("A/CPM.SYS");
 		computer.init();
 		switch (argc) {
 			case 1:
