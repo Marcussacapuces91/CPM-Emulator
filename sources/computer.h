@@ -1090,7 +1090,7 @@ protected:
  */
 	void warmBoot(ZZ80State& state) {
 		load("CCP-DR.64K", 0xF400);
-		state.Z_Z80_STATE_MEMBER_PC = 0xF400S;
+		state.Z_Z80_STATE_MEMBER_PC = 0xF400;
 	}
 	
 private:
