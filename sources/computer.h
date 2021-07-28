@@ -1089,8 +1089,8 @@ protected:
  * Lauch & run CP/M CCP
  */
 	void warmBoot(ZZ80State& state) {
-		load("CPM.SYS", 0x3400 + Computer::BIAS);
-		state.Z_Z80_STATE_MEMBER_PC = 0x3400 + Computer::BIAS;
+		load("CCP-DR.64K", 0xF400);
+		state.Z_Z80_STATE_MEMBER_PC = 0xF400S;
 	}
 	
 private:
