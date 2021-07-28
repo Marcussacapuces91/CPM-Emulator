@@ -529,7 +529,6 @@ protected:
 			case 0x73 :
 			case 0x74 :
 			case 0x75 :
-			case 0x76 :
 			case 0x77 :
 			case 0x78 :
 			case 0x79 :
@@ -543,7 +542,13 @@ protected:
 				std::clog << "LD " << rName(inst >> 3) << ',' << rName(inst) << std::endl;
 				break;
 			}
-
+			
+			case 0x76 : {	// HALT
+				logAddrInst(PC, inst);
+				std::clog << "HALT" << std::endl;
+				break;
+			}
+			
 			case 0x80 :
 			case 0x81 :
 			case 0x82 :
