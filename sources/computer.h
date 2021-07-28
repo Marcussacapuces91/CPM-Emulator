@@ -108,13 +108,25 @@
 class Computer {
 
 public:
-	void init() {
+	Computer(const std::string& aFilename) : 
+		cpu(),
+		memory(),
+		bdos(),
+		CCP_FILENAME(aFilename) {
+		assert(!CCP_FILENAME.empty());
+
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
 		std::cout << "Copyright (c) 1999-2018 Manuel Sainz de Baranda y Goni." << std::endl;
 		std::cout << "Released under the terms of the GNU General Public License v3." << std::endl;
 		std::cout << std::endl;
-		
+
+		std::cout << "CPM 2.2 Emulator " << MEMORY_SIZE << "kb" << std::endl;
+		std::cout << "Copyright (c) 2021 by M. Sibert" << std::endl;
+		std::cout << std::endl;
+	};
+	
+	void init() {
 		cpu.context = this;
 		cpu.read = Computer::read;
 		cpu.write = Computer::write;
@@ -124,9 +136,6 @@ public:
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
-		
-		std::cout << "CPM 2.2 Emulator - Copyright (c) 2021 by M. Sibert" << std::endl;
-		std::cout << std::endl;
 	}
 		
 	void load(const std::string& aFile, const uint16_t aAddr=0x0100) {
@@ -209,6 +218,37 @@ public:
 	static constexpr uint16_t MEMORY_SIZE = 64;	// Ko
 
 protected:
+	
+/**
+ * Reset computer set all low-memory values & lauche warm boot
+ */
+	void reset(ZZ80State& state) {
+	// COLD BOOT
+		memory[0x0000] = 0xC3;			// JUMP
+		memory[0x0001] = BIAS & 0xFF;	// BIAS (LL)
+		memory[0x0002] = BIAS >> 8;		// BIAS (HH)
+
+		memory[0x0003] = 0;				// Default drive: 0=A
+		memory[0x0004] = 0;				// dafault IOBYTE: 0
+		
+	// WARM BOOT
+		memory[0x0005] = 0xC3;			// JUMP
+		memory[0x0006] = BIAS & 0xFF;	// BIAS (LL)
+		memory[0x0007] = BIAS >> 8;		// BIAS (HH)
+		
+		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x0100;	// TBUFF + 80h
+		cpu.state.Z_Z80_STATE_MEMBER_C = 0x00;			// Default user 0xF0 & Default disk 0x0F
+
+		warmBoot(state);
+	}
+	
+/**
+ * Lauch & run CP/M CCP
+ */
+	void warmBoot(ZZ80State& state) {
+		load(CCP_FILENAME, 0x3400 + Computer::BIAS);
+		state.Z_Z80_STATE_MEMBER_PC = 0x3400 + Computer::BIAS;
+	}
 	
 /**
  * Callback used by Z80 to read from the memory.
@@ -395,7 +435,6 @@ protected:
 				std::clog << "LD " << rName(inst >> 3) << ',' << std::dec << unsigned(v);
 				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
 				std::clog << std::endl;
-				
 	  			break;
 			}
 
@@ -529,6 +568,7 @@ protected:
 			case 0x73 :
 			case 0x74 :
 			case 0x75 :
+//			case 0x76 : 	// HALT
 			case 0x77 :
 			case 0x78 :
 			case 0x79 :
@@ -542,13 +582,13 @@ protected:
 				std::clog << "LD " << rName(inst >> 3) << ',' << rName(inst) << std::endl;
 				break;
 			}
-			
+
 			case 0x76 : {	// HALT
 				logAddrInst(PC, inst);
 				std::clog << "HALT" << std::endl;
 				break;
 			}
-			
+
 			case 0x80 :
 			case 0x81 :
 			case 0x82 :
@@ -750,56 +790,10 @@ protected:
 				break;
 			}
 
-/*	
-	// IX instructions 
-	
-			case 0xDD : {
-				const uint8_t inst2 = memory[PC+1];
-				switch (inst2) {
-					case 0x2A : {	// LD IX,(nn)
-						const uint16_t addr = memory[PC+3] * 256U + memory[PC+2];
-	#if LOG
-						logAddrInst(PC, inst, inst2, memory[PC+2], memory[PC+3]);
-						std::clog << "LD IX,(" << std::hex << std::setw(4) << ")" << std::endl;
-	#endif
-						IX = memory[addr] + 256 * memory[addr+1];
-						PC += 4;
-						break;
-					}
-	
-					case 0xE1 : {	// POP IX
-	#if LOG
-						logAddrInst(PC, inst, inst2);
-						std::clog << "POP IX" << std::endl;
-	#endif
-						IX = memory[SP++];
-						IX += memory[SP++] * 256;
-						PC += 2;
-						break;
-					}
-	
-					case 0xE5 : {	// PUSH IX
-	#if LOG
-						logAddrInst(PC, inst, inst2);
-						std::clog << "PUSH IX" << std::endl;
-	#endif
-						memory[--SP] = (IX >> 8);
-						memory[--SP] = IX & 0x00FF;
-						PC += 2;
-						break;
-					}
-	
-					default:
-						logAddrInst(PC, inst, inst2, memory[PC+2]);
-						std::clog << " : Unknown IX instruction!" << std::endl;
-						
-						throw(std::string("Not emulated instruction"));
-						break;
-				
-				}
+			case 0xDD: { // IX instructions 
+				logInstDD(state);
 				break;
 			}
-*/	
 
 			case 0xDE : {
 				const uint8_t v = memory[PC+1];
@@ -891,6 +885,72 @@ protected:
 				break;
 	
 		}
+	}
+
+	void logInstDD(const ZZ80State& state) const {
+		const uint16_t PC = state.Z_Z80_STATE_MEMBER_PC;
+		const uint8_t inst = memory[PC];
+		const uint8_t inst2 = memory[PC+1];
+		
+		switch (inst2) {
+			default:
+				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC << "\t";
+				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+0]) << ' ';
+				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+1]) << ' ';
+				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+2]) << "\t\t\t";
+				std::clog << " : Unknown instruction in " << __FILE__ << ": " << S__LINE__ << " - " << __PRETTY_FUNCTION__ << std::endl;
+				break;
+		}
+/*	
+	// IX instructions 
+	
+			case 0xDD : {
+				const uint8_t inst2 = memory[PC+1];
+				switch (inst2) {
+					case 0x2A : {	// LD IX,(nn)
+						const uint16_t addr = memory[PC+3] * 256U + memory[PC+2];
+	#if LOG
+						logAddrInst(PC, inst, inst2, memory[PC+2], memory[PC+3]);
+						std::clog << "LD IX,(" << std::hex << std::setw(4) << ")" << std::endl;
+	#endif
+						IX = memory[addr] + 256 * memory[addr+1];
+						PC += 4;
+						break;
+					}
+	
+					case 0xE1 : {	// POP IX
+	#if LOG
+						logAddrInst(PC, inst, inst2);
+						std::clog << "POP IX" << std::endl;
+	#endif
+						IX = memory[SP++];
+						IX += memory[SP++] * 256;
+						PC += 2;
+						break;
+					}
+	
+					case 0xE5 : {	// PUSH IX
+	#if LOG
+						logAddrInst(PC, inst, inst2);
+						std::clog << "PUSH IX" << std::endl;
+	#endif
+						memory[--SP] = (IX >> 8);
+						memory[--SP] = IX & 0x00FF;
+						PC += 2;
+						break;
+					}
+	
+					default:
+						logAddrInst(PC, inst, inst2, memory[PC+2]);
+						std::clog << " : Unknown IX instruction!" << std::endl;
+						
+						throw(std::string("Not emulated instruction"));
+						break;
+				
+				}
+				break;
+			}
+*/	
 	}
 
 	void logInstED(const ZZ80State& state) const {
@@ -1007,7 +1067,11 @@ protected:
 		std::clog << std::endl;		
 	}
 	
+	inline
 	const std::string rName(const uint8_t r) const {
+		const char *const reg[] = { "B", "C", "D", "E", "H", "L", "(HL)", "A" };
+		return reg[r & 0x07];
+/*
 		switch (r & 0x07) {
 			case 0x0 : return "B"; break;
 			case 0x1 : return "C"; break;
@@ -1020,9 +1084,14 @@ protected:
 			default:
 				return "Bad register!";
 		}
+*/		
 	}
 
+	inline
 	const std::string ddName(const uint8_t dd) const {
+		const char *const reg[] = { "BC", "DE", "HL", "SP" };
+		return reg[dd & 0x03];
+/*		
 		switch (dd & 0x03) {
 			case 0x0 : return "BC"; break;
 			case 0x1 : return "DE"; break;
@@ -1031,9 +1100,14 @@ protected:
 			default:
 				return "Bad 'dd' register!";
 		}
+*/		
 	}
 	
-	const std::string qqName(const uint8_t dd) const {
+	inline
+	const std::string qqName(const uint8_t qq) const {
+		const char *const reg[] = { "BC", "DE", "HL", "SP" };
+		return reg[qq & 0x03];
+/*
 		switch (dd & 0x03) {
 			case 0x0 : return "BC"; break;
 			case 0x1 : return "DE"; break;
@@ -1042,9 +1116,14 @@ protected:
 			default:
 				return "Bad 'qq' register!";
 		}
+*/		
 	}
 	
+	inline
 	const std::string ccName(const uint8_t cc) const {
+		const char *const reg[] = { "NZ", "Z", "NC", "C", "PO", "PE", "P", "M" };
+		return reg[cc & 0x07];
+/*		
 		switch (cc & 0x07) {
 			case 0x0 : return "NZ"; break;
 			case 0x1 : return "Z";  break;
@@ -1057,47 +1136,18 @@ protected:
 			default:
 				return "Bad 'cc' register!";
 		}
+*/
 	}
 	
 	bool parity(const uint8_t N) {
-		uint8_t y = N ^ (N >> 1);
+		register uint8_t y = N ^ (N >> 1);
 		y = y ^ (y >> 2);
 		y = y ^ (y >> 4);
 		y = y ^ (y >> 8);
 		y = y ^ (y >> 16);
 		return (y & 1);
 	}
-		
-/**
- * Reset computer set all low-memory values & lauche warm boot
- */
-	void reset(ZZ80State& state) {
-		// COLD BOOT
-		memory[0x0000] = 0xC3;			// JUMP
-		memory[0x0001] = BIAS & 0xFF;	// BIAS (LL)
-		memory[0x0002] = BIAS >> 8;		// BIAS (HH)
 
-//		memory[0x0004] = 0;		// Default drive: 0=A
-		
-		// WARM BOOT
-		memory[0x0005] = 0xC3;			// JUMP
-		memory[0x0006] = BIAS & 0xFF;	// BIAS (LL)
-		memory[0x0007] = BIAS >> 8;		// BIAS (HH)
-		
-		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x80 + 128; // TBUFF + 80h
-		cpu.state.Z_Z80_STATE_MEMBER_C = 0;	// Default user 0xF0 & Default disk 0x0F
-
-		warmBoot(state);
-	}
-	
-/**
- * Lauch & run CP/M CCP
- */
-	void warmBoot(ZZ80State& state) {
-		load("CPM.SYS", 0xDC00);
-		state.Z_Z80_STATE_MEMBER_PC = 0xDC00;
-	}
-	
 private:
 /**
  * Z80 processor 
@@ -1112,8 +1162,13 @@ private:
 	uint8_t memory[MEMORY_SIZE * 1024];
 	
 /**
- * BDOS functions & variables
+ * BDOS functions & variables.
  */
  	BDos<MEMORY_SIZE * 1024> bdos;
+ 	
+/**
+ * File path where to find CCP.
+ */
+	const std::string& CCP_FILENAME;
 };
 
