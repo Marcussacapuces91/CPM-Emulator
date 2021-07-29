@@ -135,8 +135,36 @@ public:
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
-		cpu.state.Z_Z80_STATE_MEMBER_PC = 0;
-		cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
+//		cpu.state.Z_Z80_STATE_MEMBER_PC = 0;
+//		cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
+		
+		
+	// COLD BOOT
+		memory[0x0000] = 0xC3;			// JUMP TO BIOS
+		memory[0x0001] = 0x00;			//
+		memory[0x0002] = 0xF4;			//
+
+		memory[0x0003] = 0;				// Default drive: 0=A
+		memory[0x0004] = 0;				// Default IOBYTE: 0 ou D3 ???
+		
+	// WARM BOOT
+		memory[0x0005] = 0xC3;			// JUMP
+		memory[0x0006] = 0x00;			// BIAS (LL)
+		memory[0x0007] = 0xF4;			// BIAS (HH)
+		
+		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x0100;	// TBUFF + 80h
+		cpu.state.Z_Z80_STATE_MEMBER_C = 0x00;			// Default user 0xF0 & Default disk 0x0F
+
+		memory[0xFC00] = 0x00;			// BIOS SIGNATURE
+		memory[0xFC01] = 0x16;			// CPM ver
+		memory[0xFC02] = 0x00;
+		memory[0xFC03] = 0x00;
+		memory[0xFC04] = 0x00;
+		memory[0xFC05] = 0x00;
+
+
+
+		
 	}
 		
 	void load(const std::string& aFile, const uint16_t aAddr=0x0100) {
@@ -158,7 +186,7 @@ public:
 				}
 			}
 			fs.close();
-//			std::clog << addr - aAddr << " bytes read." << std::endl;
+//			std::clog << ">> " << addr - aAddr << " bytes read." << std::endl;
 		} else {
 			std::cerr << ">> Error opening file \"" << aFile << "\"" << std::endl;
 			throw std::runtime_error("Error opening file!");
@@ -175,6 +203,9 @@ public:
 			}
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
+#ifdef LOG
+				logSpecAddr(cpu.state);
+#endif
 				return;
 			} 
 			
@@ -195,6 +226,10 @@ public:
 			logSpecAddr(cpu.state);
 			logInst(cpu.state);
 #endif
+			if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x76)  {		// HALT
+				std::cerr << ">> HALT instruction at " << std::hex << std::setw(4) << cpu.state.Z_Z80_STATE_MEMBER_PC << "!" << std::endl;
+				throw std::runtime_error("HALT instruction!");
+			}
 			z80_run(&cpu, 1);	// return cycles
 		}
 	}
@@ -210,22 +245,6 @@ protected:
  * Reset computer set all low-memory values & lauche warm boot
  */
 	void reset(ZZ80State& state) {
-	// COLD BOOT
-		memory[0x0000] = 0xC3;			// JUMP
-		memory[0x0001] = BIAS & 0xFF;	// BIAS (LL)
-		memory[0x0002] = BIAS >> 8;		// BIAS (HH)
-
-		memory[0x0003] = 0;				// Default drive: 0=A
-		memory[0x0004] = 0;				// dafault IOBYTE: 0
-		
-	// WARM BOOT
-		memory[0x0005] = 0xC3;			// JUMP
-		memory[0x0006] = BIAS & 0xFF;	// BIAS (LL)
-		memory[0x0007] = BIAS >> 8;		// BIAS (HH)
-		
-		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x0100;	// TBUFF + 80h
-		cpu.state.Z_Z80_STATE_MEMBER_C = 0x00;			// Default user 0xF0 & Default disk 0x0F
-
 		warmBoot(state);
 	}
 	

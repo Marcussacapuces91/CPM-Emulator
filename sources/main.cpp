@@ -36,10 +36,10 @@ int main(int argc, char** argv) {
 		switch (argc) {
 			case 1:
 				while (true) {
-					computer.load("CPM.SYS", 0x3400 + 0xA800);
+//					computer.load("CPM.SYS", 0x3400 + 0xA800);
 //					computer.load("CCP-Z80.64K", 0xF400);
-//					computer.load("CCP-DR.64K", 0xF400);
-					computer.run(0x3400 + 0xA800);
+					computer.load("CCP-DR.64K", 0xF400);
+					computer.run(0xF400);
 				}
 				break;
 			case 2:
