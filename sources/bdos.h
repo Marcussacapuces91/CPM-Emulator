@@ -100,7 +100,7 @@ public:
 			case 0x16 : makeFile(state, memory); break;
 			case 0x19 : returnCurrentDisk(state, memory); break;
 			case 0x1A : setDMAAddress(state); break;
-			case 0x20 : setGetUserCode(state); break;
+			case 0x20 : setGetUserCode(state, memory); break;
 			
 			default:
 				std::cerr << "Register C: " << std::hex << std::setw(2) << std::setfill('0') << unsigned(state.Z_Z80_STATE_MEMBER_C) << "h";
@@ -329,7 +329,7 @@ protected:
 #if LOG
 		std::clog << "Reset drive ; default to A" << std::endl;
 #endif
-		memory[DRIVE] = 0;
+		memory[USER_DRIVE] = 0;
 		dma = 0x80;
 		returnCode(state, 0);
 	}
@@ -350,7 +350,7 @@ protected:
 			struct stat st;
 			const int err = stat(dir, &st);
 			if (!err) {
-				memory[DRIVE] = state.Z_Z80_STATE_MEMBER_E;
+				memory[USER_DRIVE] = (memory[USER_DRIVE] & 0xF0) | (state.Z_Z80_STATE_MEMBER_E & 0xF0);
 				returnCode(state, 0);
 				return;
 			}
@@ -381,7 +381,7 @@ protected:
 	void openFile(ZZ80State& state, uint8_t *const memory) {
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 		char filename[15];	// DIR + "/" + NAME + "." + EXT
-		fcbToFilename(pFCB, memory[DRIVE], filename);
+		fcbToFilename(pFCB, (memory[USER_DRIVE] & 0x0F), filename);
 
 #if LOG
 		std::clog << "Open file " << '"' << filename << "\" (FCB: "
@@ -444,7 +444,7 @@ protected:
 #if LOG
 		std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : memory[DRIVE])), '\0' };
+		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : (memory[USER_DRIVE] & 0x0F))), '\0' };
 
 		memcpy(filter, pFCB->filename, 11);
 		filter[11] = '\0';
@@ -504,7 +504,7 @@ protected:
  */
  	void deleteFile(ZZ80State& state, uint8_t *const memory) {
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : memory[DRIVE])), '\0' };
+		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : (memory[USER_DRIVE]) & 0x0F)), '\0' };
 #if LOG
 		std::clog << "Delete file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
@@ -632,7 +632,7 @@ protected:
 		std::clog << "Make file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
 		char filename[15];	// DIR + "/" + NAME + "." + EXT
-		fcbToFilename(pFCB, memory[DRIVE], filename);
+		fcbToFilename(pFCB, (memory[USER_DRIVE] & 0x0F), filename);
 		
 		auto sIn = std::ifstream(filename, std::ios_base::in);
 		if (sIn.is_open()) {	// Existing file (error!)
@@ -679,9 +679,9 @@ protected:
  */
  	void returnCurrentDisk(ZZ80State& state, uint8_t *const memory) {
 #if LOG
-		std::clog << "Get drive (" << char('A' + memory[DRIVE]) << ')' << std::endl;
+		std::clog << "Get drive (" << char('A' + (memory[USER_DRIVE] & 0x0F)) << ')' << std::endl;
 #endif
-		returnCode(state, memory[DRIVE]);	// ok - drive numb.
+		returnCode(state, (memory[USER_DRIVE] & 0x0F));	// ok - drive numb.
 	}
 
 /**
@@ -751,17 +751,17 @@ protected:
  * Set current user number. E should be 0-15, or 255 to retrieve the current user number into A. Some versions can use user areas 16-31, but these should be avoided for compatibility reasons.
  * DOS+ returns the number set in A.
  */
-	void setGetUserCode(ZZ80State& state) {
+	void setGetUserCode(ZZ80State& state, uint8_t *const memory) {
 		if (state.Z_Z80_STATE_MEMBER_E == 0xFF) {
 #if LOG
-			std::clog << "Get user number (" << unsigned(user) << ")" << std::endl;
+			std::clog << "Get user number (" << unsigned(memory[USER_DRIVE] >> 4) << ")" << std::endl;
 #endif
-			returnCode(state, user);	// OK - user numb.
+			returnCode(state, memory[USER_DRIVE] >> 4);	// OK - user numb.
 		} else {
 #if LOG
 			std::clog << "Set user number to " << unsigned(state.Z_Z80_STATE_MEMBER_E) << std::endl;
 #endif
-			user = state.Z_Z80_STATE_MEMBER_E;
+			memory[USER_DRIVE] = (memory[USER_DRIVE] & 0x0F) | state.Z_Z80_STATE_MEMBER_E << 4;
 			returnCode(state, 0);	// OK
 		}
 	}
@@ -933,20 +933,14 @@ private:
 	static constexpr auto SECTOR_SIZE = 128;
 
 /**
- * Current drive.
+ * Current address for user (H) & drive (L)
  */
-//	uint8_t drive = 0;	// A
-	static constexpr auto DRIVE = 4;
+	static constexpr auto USER_DRIVE = 4;
 
 /**
  * DMA's address.
  */
 	uint16_t dma = 128;
-
-/**
- * Current user.
- */
-	uint8_t user = 0;
 
 /**
  * Scanning a path.
