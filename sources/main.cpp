@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 					computer.load("CPM.SYS", 0x3400 + 0xA800);
 //					computer.load("CCP-Z80.64K", 0xF400);
 //					computer.load("CCP-DR.64K", 0xF400);
-					computer.run(0x3400);
+					computer.run(0x3400 + 0xA800);
 				}
 				break;
 			case 2:
