@@ -83,6 +83,7 @@ public:
 		switch (state.Z_Z80_STATE_MEMBER_C) {
 			case 0x01 : consoleInput(state); break;
 			case 0x02 : consoleOutput(state); break;
+			case 0x06 : directConsoleIO(state); break;
 			case 0x09 : printString(state, memory); break;
 			case 0x0A : readConsoleBuffer(state, memory); break;
 			case 0x0B : getConsoleStatus(state); break;
@@ -192,7 +193,15 @@ protected:
  *		[DOS+] One-character lookahead - return the next character waiting but leave it in the buffer.
  * Values of E not supported on a particular system will output the character. Under CP/M 2 and lower, direct console functions may interact undesirably with non-direct ones, since certain buffers may be bypassed. Do not mix them.
  */
-	void directConsoleIO();
+	void directConsoleIO(ZZ80State& state) {
+		if (state.Z_Z80_STATE_MEMBER_E == 0xFF) {
+			char c;
+			const auto n = std::cin.readsome(&c, 1);
+			returnCode(state, n ? c : 0x00);
+		} else {
+			std::cout << char(state.Z_Z80_STATE_MEMBER_E);
+		}
+	}
 	
 /**
  * BDOS function 7 - Get I/O byte
@@ -371,22 +380,26 @@ protected:
  */
 	void openFile(ZZ80State& state, uint8_t *const memory) {
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-#if LOG
-		std::clog << "Open file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
-#endif
 		char filename[15];	// DIR + "/" + NAME + "." + EXT
 		fcbToFilename(pFCB, memory[DRIVE], filename);
 
-		std::fstream *const ps = getStream();
-		assert(ps);
-		ps->open(filename, std::ios::binary|std::ios::out|std::ios::in);
-		if (!(*ps)) {
-			std::cerr << ">> Error opening file '" << filename << "': " << strerror(errno) << "!" << std::endl;
+#if LOG
+		std::clog << "Open file " << '"' << filename << "\" (FCB: "
+				  << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h) "
+				  << std::endl;
+#endif
+
+		std::fstream& s = getStream(state.Z_Z80_STATE_MEMBER_DE);
+		s.close();	// in case of...
+		s.open(filename, std::ios::binary|std::ios::in);	// Open RO !
+		if (!s) {
+			std::cerr << ">> Error opening file '" << filename << "': "
+					  << strerror(errno) << "!" << std::endl;
 			returnCode(state, 0xFF);
-			releaseStream(ps);
+			releaseStream(state.Z_Z80_STATE_MEMBER_DE);
 			return;
 		}
-		memcpy(pFCB->AL, &ps, sizeof(ps));
+//		memcpy(pFCB->AL, &ps, sizeof(ps));
 		returnCode(state, 0x00);
 	}
 
@@ -404,19 +417,19 @@ protected:
 #if LOG
 		std::clog << "Close file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
+/*
 		std::fstream* ps;
 		memcpy(&ps, pFCB->AL, sizeof(ps));
-		assert(ps);
-
-		ps->close();
-		if (ps->is_open()) {
+*/
+		std::fstream& s = getStream(state.Z_Z80_STATE_MEMBER_DE);
+		s.close();
+		if (s.is_open()) {
 			std::cerr << ">> Error closing file: " << strerror(errno) << "!" << std::endl;
 			returnCode(state, 0xFF);	// KO
-			return;
+		} else {
+			releaseStream(state.Z_Z80_STATE_MEMBER_DE);
+			returnCode(state, 0x00);	// OK
 		}
-		
-		releaseStream(ps);
-		returnCode(state, 0x00);	// OK
 	}
 /**
  * BDOS function 17 (F_SFIRST) - search for first
@@ -545,39 +558,34 @@ protected:
 #if LOG
 		std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		std::fstream* ps;
-		memcpy(&ps, pFCB->AL, sizeof(ps));
-		assert(ps);
-
 		if (dma + SECTOR_SIZE >= MEMORY_SIZE) {
 			std::cerr << ">> Writing DMA out of memory!" << std::endl;
 			returnCode(state, 0xFF);	// OK
 			return;
 		}
-		
-		ps->read(reinterpret_cast<char*>(memory + dma), SECTOR_SIZE);
-		if (*ps) {
+		std::fstream& s = getStream(state.Z_Z80_STATE_MEMBER_DE);
+		s.read(reinterpret_cast<char*>(memory + dma), SECTOR_SIZE);
+		if (s) {
 			returnCode(state, 0x00);	// OK
 		} else {
-			if (ps->eof()) {
-				if (ps->gcount()) {		// few read
-					memset(memory + ps->gcount(), '\0', SECTOR_SIZE - ps->gcount());	// padding with '\0'
-					returnCode(state, 0x00);	// OK
+			if (s.eof()) {
+				if (s.gcount()) {		// few read
+					memset(memory + s.gcount(), 0xE5, SECTOR_SIZE - s.gcount());	// padding with 0xE5
+					returnCode(state, 0x00);	// OK - May be partial read
 				} else {
-					returnCode(state, 0x01);	// EOF
+					returnCode(state, 0x01);	// EOF - Nothing read
 				} 
 			} else {
 				std::cerr << ">> Error reading: " << strerror(errno) << "!" << std::endl;
 				
-				std::cerr << ">> " << ps->gcount() << " bytes read" << std::endl;
-				std::cerr << ">> good: " << ps->good() << std::endl;
-				std::cerr << ">> fail: " << ps->fail() << std::endl;
-				std::cerr << ">> bad: " << ps->bad() << std::endl;
-				std::cerr << ">> eof: " << ps->eof() << std::endl;
+				std::cerr << ">> " << s.gcount() << " bytes read" << std::endl;
+				std::cerr << ">> good: " << s.good() << std::endl;
+				std::cerr << ">> fail: " << s.fail() << std::endl;
+				std::cerr << ">> bad: " << s.bad() << std::endl;
+				std::cerr << ">> eof: " << s.eof() << std::endl;
 				returnCode(state, 0xFF);	// OK
 			}
 		}
-		return;
 	}
 
 /**
@@ -588,40 +596,22 @@ protected:
 #if LOG
 		std::clog << "Write next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		std::fstream* ps;
-		memcpy(&ps, pFCB->AL, sizeof(ps));
-		assert(ps);
-
 		if (dma + SECTOR_SIZE >= MEMORY_SIZE) {
 			std::cerr << ">> Reading DMA out of memory!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
-
-		try {
-			ps->write(reinterpret_cast<char*>(memory + dma), SECTOR_SIZE);
-		} catch (std::exception& e) {
-			std::cerr << ">> Error writing: " << strerror(errno) << "," << e.what() << "!" << std::endl;
-			
-			std::cerr << ">> " << ps->gcount() << " bytes wrote" << std::endl;
-			std::cerr << ">> good: " << ps->good() << std::endl;
-			std::cerr << ">> fail: " << ps->fail() << std::endl;
-			std::cerr << ">> bad: " << ps->bad() << std::endl;
-			std::cerr << ">> eof: " << ps->eof() << std::endl;
-			returnCode(state, 0xFF);	// KO
-			return;
-		}
-		
-		if (!ps->good()) {
+		std::fstream& s = getStream(state.Z_Z80_STATE_MEMBER_DE);
+		s.write(reinterpret_cast<char*>(memory + dma), SECTOR_SIZE);
+		if (!s) {
 			std::cerr << ">> Error writing: " << strerror(errno) << "!" << std::endl;
-			std::cerr << ">> good: " << ps->good() << std::endl;
-			std::cerr << ">> fail: " << ps->fail() << std::endl;
-			std::cerr << ">> bad: " << ps->bad() << std::endl;
-			std::cerr << ">> eof: " << ps->eof() << std::endl;
+			std::cerr << ">> good: " << s.good() << std::endl;
+			std::cerr << ">> fail: " << s.fail() << std::endl;
+			std::cerr << ">> bad: " << s.bad() << std::endl;
+			std::cerr << ">> eof: " << s.eof() << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
-
 		returnCode(state, 0x00);	// OK
 	}
 	
@@ -644,26 +634,24 @@ protected:
 		char filename[15];	// DIR + "/" + NAME + "." + EXT
 		fcbToFilename(pFCB, memory[DRIVE], filename);
 		
-		auto s = std::ifstream(filename, std::ios_base::in);
-		if (s.is_open()) {	// Existing file
-			s.close();
+		auto sIn = std::ifstream(filename, std::ios_base::in);
+		if (sIn.is_open()) {	// Existing file (error!)
+			sIn.close();
 			std::cerr << ">> Error creating file '" << filename << "': Already existing file!" << std::endl;
 			returnCode(state, 0xFF);
-			return;						
+		} else {			// New file (find.)
+			std::fstream& sOut = getStream(state.Z_Z80_STATE_MEMBER_DE);
+			sOut.close();	// in case of...
+			sOut.open(filename, std::ios::binary|std::ios::out|std::ios::in|std::ios::trunc);	// create if not exists
+			if (!sOut) {	// fail to open!
+				std::cerr << ">> Error opening file '" << filename << "': " << strerror(errno) << "!" << std::endl;
+				returnCode(state, 0xFF);
+				releaseStream(state.Z_Z80_STATE_MEMBER_DE);
+			} else {	// Success opening.
+//				memcpy(pFCB->AL, &ps, sizeof(ps));
+				returnCode(state, 0x00);
+			}
 		}
-
-		std::fstream *const ps = getStream();
-		assert(ps);
-		ps->open(filename, std::ios::binary|std::ios::out|std::ios::in|std::ios::trunc);	// create if not exists
-		if (!(*ps)) {
-			std::cerr << ">> Error opening file '" << filename << "': " << strerror(errno) << "!" << std::endl;
-			returnCode(state, 0xFF);
-			releaseStream(ps);
-			return;
-		}
-
-		memcpy(pFCB->AL, &ps, sizeof(ps));
-		returnCode(state, 0x00);
 	}
 
 /**
@@ -814,11 +802,16 @@ protected:
  * Return a free fstream ans set it as occuped.
  * @return a reference on a free fstream.
  */
-	std::fstream *const getStream() {
+	std::fstream& getStream(const uint16_t aFCB) {
+		assert(aFCB);
+		for (auto i = 0; i < 10; ++i) {
+			if (FCB[i] == aFCB) return *fileStream[i];
+		}
 		for (auto i = 0; i < 10; ++i) {
 			if (fileStream[i] == NULL) {
 				fileStream[i] = new std::fstream;
-				return fileStream[i];
+				FCB[i] = aFCB;
+				return *fileStream[i];
 			}
 		}
 		std::cerr << "Can't get another stream in BDOS::getStream!" << std::endl;
@@ -829,21 +822,20 @@ protected:
  * Release the fstream sent.
  * @param sStream a fstream to be released.
  */
-	void releaseStream(const std::fstream *const apStream) {
-		assert(apStream);
+	void releaseStream(const uint16_t aFCB) {
+		assert(aFCB);
 		for (auto i = 0; i < 10; ++i) {
-			if (apStream == fileStream[i]) {
+			if (FCB[i] == aFCB) {
 				delete fileStream[i];
 				fileStream[i] = NULL;
+				FCB[i] = 0;
 				return;
 			}
 		}
 		std::cerr << "Can't release this stream in BDOS::getStream!" << std::endl;
 		throw(std::runtime_error("Can't release this stream in BDOS::getStream!"));
 	}
- 
- 
- 
+
 
 	inline
 	void returnCode(ZZ80State& state, const uint16_t hl) const  {
@@ -938,13 +930,13 @@ protected:
 
 private:
 
-	static const auto SECTOR_SIZE = 128;
+	static constexpr auto SECTOR_SIZE = 128;
 
 /**
  * Current drive.
  */
 //	uint8_t drive = 0;	// A
-	static const auto DRIVE = 4;
+	static constexpr auto DRIVE = 4;
 
 /**
  * DMA's address.
@@ -967,10 +959,14 @@ private:
 	char filter[12] = "";
 	
 /**
- * List of available fstream.
+ * List of FCB
+ */
+	uint16_t FCB[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+/**
+ * List of fstream associated with FCBs.
  */
 	std::fstream* fileStream[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
-
 
 };
 
