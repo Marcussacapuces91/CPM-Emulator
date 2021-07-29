@@ -359,8 +359,8 @@ protected:
 
 
 // Pour MBASIC
-			case 0x5d8c	: std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "; INIT: (INIT.MAC)" << std::endl;
-			case 0x5dd8	: std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "; Check CP/M version number (INIT.MAC)" << std::endl;
+			case 0x5d8c	: std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "; INIT: (INIT.MAC)" << std::endl; break;
+			case 0x5dd8	: std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "; Check CP/M version number (INIT.MAC)" << std::endl; break;
 
 		}
 	}
