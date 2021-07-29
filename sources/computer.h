@@ -105,15 +105,14 @@
  *  0x4a30 : JMP SECTRAN (sector translate subroutine)
  */
  
+template <unsigned MEMORY_SIZE>
 class Computer {
 
 public:
-	Computer(const std::string& aFilename) : 
+	Computer() : 
 		cpu(),
 		memory(),
-		bdos(),
-		CCP_FILENAME(aFilename) {
-		assert(!CCP_FILENAME.empty());
+		bdos() {
 
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
@@ -121,7 +120,7 @@ public:
 		std::cout << "Released under the terms of the GNU General Public License v3." << std::endl;
 		std::cout << std::endl;
 
-		std::cout << "CPM 2.2 Emulator " << MEMORY_SIZE << "kb" << std::endl;
+		std::cout << "CP/M 2.2 Emulator " << MEMORY_SIZE << "kb" << std::endl;
 		std::cout << "Copyright (c) 2021 by M. Sibert" << std::endl;
 		std::cout << std::endl;
 	};
@@ -136,6 +135,8 @@ public:
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
+		cpu.state.Z_Z80_STATE_MEMBER_PC = 0;
+		cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
 	}
 		
 	void load(const std::string& aFile, const uint16_t aAddr=0x0100) {
@@ -149,8 +150,8 @@ public:
 			while (fs.good()) {
 				const uint8_t c = fs.get();
 				if (!fs.eof()) {
-					if (addr >= MEMORY_SIZE * 1024) {
-						std::cerr << ">> Writing out of memory: " << addr << std::endl;
+					if (addr >= MEMORY_SIZE * 1024L) {
+						std::cerr << ">> Writing out of memory: " << std::hex << addr << std::endl;
 						throw std::runtime_error("Writing out of memory");
 					}
 					memory[addr++] = c;
@@ -160,11 +161,12 @@ public:
 //			std::clog << addr - aAddr << " bytes read." << std::endl;
 		} else {
 			std::cerr << ">> Error opening file \"" << aFile << "\"" << std::endl;
-			throw std::runtime_error("Error opening file");
+			throw std::runtime_error("Error opening file!");
 		}
 	}
 	
 	void run(const uint16_t aAddr=0x0100) {
+		assert(aAddr);	// > 0
 		cpu.state.Z_Z80_STATE_MEMBER_PC = aAddr;
 		while (true) {
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC >= MEMORY_SIZE * 1024) {
@@ -173,15 +175,11 @@ public:
 			}
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
-//				logSpecAddr(cpu.state);
-				reset(cpu.state);
-				continue;
+				return;
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0003) {	// Warm boot
-//				logSpecAddr(cpu.state);
-				warmBoot(cpu.state);
-				continue;
+				return;
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0005) {	// BDOS
@@ -193,12 +191,6 @@ public:
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
 				continue;
 			}
-/*			
-			if (verifInstruction(cpu.state)) {
-				logSpecAddr(cpu.state);
-				continue;
-			}
-*/			
 #ifdef LOG
 			logSpecAddr(cpu.state);
 			logInst(cpu.state);
@@ -212,11 +204,6 @@ public:
  */
 	static constexpr uint16_t BIAS = 0xA800;			// 64k -> B000
 	
-/**
- * Full memory size (can't be over 64Ko)
- */	
-	static constexpr uint16_t MEMORY_SIZE = 64;	// Ko
-
 protected:
 	
 /**
@@ -246,7 +233,7 @@ protected:
  * Lauch & run CP/M CCP
  */
 	void warmBoot(ZZ80State& state) {
-		load(CCP_FILENAME, 0x3400 + Computer::BIAS);
+//		load(CCP_FILENAME, 0x3400 + Computer::BIAS);
 		state.Z_Z80_STATE_MEMBER_PC = 0x3400 + Computer::BIAS;
 	}
 	
@@ -257,7 +244,7 @@ protected:
  * @return read value. 
  */	
 	static zuint8 read(void* context, zuint16 address) {
-		auto c = static_cast<Computer *const>(context);
+		const auto c = static_cast<Computer *const>(context);
 		return c->memory[address];
 	}
 
@@ -376,7 +363,9 @@ protected:
 			case 0x31 : {	// LD dd,nn
 				const uint16_t nn = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "LD " << ddName(inst >> 4) << ',' << std::dec << unsigned(nn) << std::endl;
+				std::clog << "LD " << ddName(inst >> 4) << ','
+						  << std::setw(4) << std::hex << unsigned(nn) << "h \t; " 
+						  << std::dec << unsigned(nn) << std::endl;
 				break;
 			}
 
@@ -433,7 +422,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "LD " << rName(inst >> 3) << ',' << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 	  			break;
 			}
@@ -443,7 +432,7 @@ protected:
 				std::clog << "RLCA" << std::endl;
 				break;
 			}
-
+			
 			case 0x09 :
 			case 0x19 :
 			case 0x29 :
@@ -475,18 +464,52 @@ protected:
 				break;
 			}
 	
+			case 0x10 : {	// DJNZ *
+				logAddrInst(PC, inst, memory[PC+1]);
+				std::clog << "DJNZ " << (memory[PC+1] > 127 ? "-" : "+")
+						  << (memory[PC+1] > 127 ? 256 - memory[PC+1] : memory[PC+1])
+						  << " \t\t; " << std::hex << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
+						  << "h" << std::endl;
+				break;
+			}
+
 			case 0x17 : { 	// RLA
 				logAddrInst(PC, inst);
 				std::clog << "RLA" << std::endl;
 				break;
 			}
 			
+			case 0x18 : {	// JR *
+				logAddrInst(PC, inst, memory[PC+1]);
+				std::clog << "JR " << (memory[PC+1] > 127 ? "-" : "+")
+						  << (memory[PC+1] > 127 ? 256 - memory[PC+1] : memory[PC+1])
+						  << " \t\t; " << std::hex << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
+						  << "h" << std::endl;
+				break;
+			}
+
 			case 0x1F : { 	// RRA
 				logAddrInst(PC, inst);
-				std::clog << "RRA " << std::endl;
+				std::clog << "RRA" << std::endl;
 				break;
 			}
 			
+			case 0x20 :
+			case 0x28 :
+			case 0x30 :
+			case 0x38 : {	// JR cc,+/- r
+				logAddrInst(PC, inst, memory[PC+1]);
+				if (inst == 0x20) std::clog << "JR NZ/";
+				if (inst == 0x28) std::clog << "JR Z/";
+				if (inst == 0x30) std::clog << "JR NC/";
+				if (inst == 0x38) std::clog << "JR C/";
+				std::clog << "JR " << ccName((inst - 0x20) >> 3 ) << (memory[PC+1] > 127 ? " -" : " +")
+						  << (memory[PC+1] > 127 ? 256 - memory[PC+1] : memory[PC+1])
+						  << " \t\t; " << std::hex << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
+						  << "h" << std::endl;
+				break;
+			}
+
 			case 0x22 : {	// LD (addr), HL
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
@@ -501,6 +524,12 @@ protected:
 				break;
 			}
 				
+			case 0x2F : { 	// CPL
+				logAddrInst(PC, inst);
+				std::clog << "CPL" << std::endl;
+				break;
+			}
+			
 			case 0x32 : {	// LD (nn),A
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
@@ -725,7 +754,8 @@ protected:
 			case 0xFA : { 	// JP cc,addr
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "JP " << ccName(inst >> 3) << ',' << std::setw(4) << addr << 'h' << std::endl;
+				std::clog << "JP " << ccName(inst >> 3) << ','
+						  << std::setw(4) << addr << 'h' << std::endl;
 				break;
 			}
 	
@@ -746,7 +776,8 @@ protected:
 			case 0xFC : { 	// CALL cc,addr
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "CALL " << ccName(inst >> 3) << ',' << std::setw(4) << addr << 'h' << std::endl;
+				std::clog << "CALL " << ccName(inst >> 3) << ','
+						  << std::setw(4) << addr << 'h' << std::endl;
 				break;
 			}
 
@@ -763,7 +794,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "ADD A," << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -785,7 +816,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "SUB " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -812,7 +843,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "AND " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -844,7 +875,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "OR " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -871,7 +902,7 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "CP " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 128)) std::clog << "\t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -1071,72 +1102,24 @@ protected:
 	const std::string rName(const uint8_t r) const {
 		const char *const reg[] = { "B", "C", "D", "E", "H", "L", "(HL)", "A" };
 		return reg[r & 0x07];
-/*
-		switch (r & 0x07) {
-			case 0x0 : return "B"; break;
-			case 0x1 : return "C"; break;
-			case 0x2 : return "D"; break;
-			case 0x3 : return "E"; break;
-			case 0x4 : return "H"; break;
-			case 0x5 : return "L"; break;
-			case 0x6 : return "(HL)"; break;
-			case 0x7 : return "A"; break;
-			default:
-				return "Bad register!";
-		}
-*/		
 	}
 
 	inline
 	const std::string ddName(const uint8_t dd) const {
 		const char *const reg[] = { "BC", "DE", "HL", "SP" };
 		return reg[dd & 0x03];
-/*		
-		switch (dd & 0x03) {
-			case 0x0 : return "BC"; break;
-			case 0x1 : return "DE"; break;
-			case 0x2 : return "HL"; break;
-			case 0x3 : return "SP"; break;
-			default:
-				return "Bad 'dd' register!";
-		}
-*/		
 	}
 	
 	inline
 	const std::string qqName(const uint8_t qq) const {
 		const char *const reg[] = { "BC", "DE", "HL", "SP" };
 		return reg[qq & 0x03];
-/*
-		switch (dd & 0x03) {
-			case 0x0 : return "BC"; break;
-			case 0x1 : return "DE"; break;
-			case 0x2 : return "HL"; break;
-			case 0x3 : return "AF"; break;
-			default:
-				return "Bad 'qq' register!";
-		}
-*/		
 	}
 	
 	inline
 	const std::string ccName(const uint8_t cc) const {
 		const char *const reg[] = { "NZ", "Z", "NC", "C", "PO", "PE", "P", "M" };
 		return reg[cc & 0x07];
-/*		
-		switch (cc & 0x07) {
-			case 0x0 : return "NZ"; break;
-			case 0x1 : return "Z";  break;
-			case 0x2 : return "NC"; break;
-			case 0x3 : return "C";  break;
-			case 0x4 : return "PO"; break;
-			case 0x5 : return "PE"; break;
-			case 0x6 : return "P";  break;
-			case 0x7 : return "M";  break;
-			default:
-				return "Bad 'cc' register!";
-		}
-*/
 	}
 	
 	bool parity(const uint8_t N) {
@@ -1166,9 +1149,5 @@ private:
  */
  	BDos<MEMORY_SIZE * 1024> bdos;
  	
-/**
- * File path where to find CCP.
- */
-	const std::string& CCP_FILENAME;
 };
 
