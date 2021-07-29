@@ -31,11 +31,16 @@ int main(int argc, char** argv) {
 #endif
 	
 	try {
-		Computer computer("A/CPM.SYS");
+		Computer<64> computer;
 		computer.init();
 		switch (argc) {
 			case 1:
-				computer.run(0x0000);
+				while (true) {
+					computer.load("CPM.SYS", 0x3400 + 0xA800);
+//					computer.load("CCP-Z80.64K", 0xF400);
+//					computer.load("CCP-DR.64K", 0xF400);
+					computer.run(0x3400);
+				}
 				break;
 			case 2:
 				computer.load(argv[1]);
@@ -43,10 +48,11 @@ int main(int argc, char** argv) {
 				break;
 			default:
 				std::cerr << "Invalid number of arguments!" << std::endl;
+				return EXIT_FAILURE;
 		}
 	} catch (std::exception& e) {
 		std::cerr << "Exception " << e.what() << std::endl;
-		return 1;
+		return EXIT_FAILURE;
 	}
-	return 0;
+	return EXIT_SUCCESS;
 }
