@@ -107,7 +107,6 @@
  
 template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
 class Computer {
-
 public:
 /**
  * Constructor printing out somme copyright texts.
@@ -115,7 +114,7 @@ public:
 	Computer() : 
 		cpu(),
 		memory(),
-		bdos<MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR>() {
+		bdos(MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR) {
 
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
@@ -1158,7 +1157,7 @@ private:
 /**
  * BDOS functions & variables.
  */
- 	BDos<MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR> bdos;
+ 	BDos bdos;
  	
 };
 
