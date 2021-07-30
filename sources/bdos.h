@@ -71,7 +71,7 @@ struct __attribute__ ((packed)) FCB_t {
 template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
 class BDos {
 public:
-	void init() {
+	void init(uint8_t *const memory) {
 	// COLD BOOT
 		memory[0x0000] = 0xC3;				// JUMP TO BIOS
 		memory[0x0001] = BIOS_ADDR & 0xFF;	//

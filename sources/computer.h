@@ -145,7 +145,7 @@ public:
 //		cpu.state.Z_Z80_STATE_MEMBER_PC = 0;
 //		cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
 		
-		bdos.init();
+		bdos.init(memory);
 
 		if (!aFilename.empty() && !aAddr) {
 			load(aFilename, aAddr);
