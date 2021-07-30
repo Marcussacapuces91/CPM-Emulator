@@ -77,7 +77,7 @@ public:
 		BIOS_ADDR(biosAddr) {
 	}
 
-	void BDos.init() {
+	void init() {
 	// COLD BOOT
 		memory[0x0000] = 0xC3;				// JUMP TO BIOS
 		memory[0x0001] = BIOS_ADDR & 0xFF;	//
