@@ -109,6 +109,9 @@ template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
 class Computer {
 
 public:
+/**
+ * Constructor printing out somme copyright texts.
+ */
 	Computer() : 
 		cpu(),
 		memory(),
@@ -125,6 +128,11 @@ public:
 		std::cout << std::endl;
 	};
 	
+/**
+ * Initialize cpu and BDOS ; optionaly load program (CPP) at designed address.
+ * @param aFilename Path to binary to load in memory.
+ * @param aAddr Memory address where to load the binary.
+ */
 	void init(const std::string& aFilename = "", const uint16_t aAddr = 0) {
 		cpu.context = this;
 		cpu.read = Computer::read;
@@ -162,7 +170,8 @@ public:
 				const uint8_t c = fs.get();
 				if (!fs.eof()) {
 					if (addr >= MEMORY_SIZE * 1024L) {
-						std::cerr << ">> Writing out of memory: " << std::hex << addr << std::endl;
+						std::cerr << ">> Writing out of memory: "
+								  << std::hex << addr << std::endl;
 						throw std::runtime_error("Writing out of memory");
 					}
 					memory[addr++] = c;
@@ -1149,7 +1158,7 @@ private:
 /**
  * BDOS functions & variables.
  */
- 	BDos<MEMORY_SIZE * 1024> bdos;
+ 	BDos<MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR> bdos;
  	
 };
 
