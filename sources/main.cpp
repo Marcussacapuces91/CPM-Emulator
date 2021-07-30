@@ -31,18 +31,18 @@ int main(int argc, char** argv) {
 #endif
 	
 	try {
-		Computer<64> computer;
-		computer.init();
+		Computer<64, 0xFC00, 0xFE00> computer;
 		switch (argc) {
 			case 1:
 				while (true) {
+					computer.init("CCP-DR.64K", 0xF400);
 //					computer.load("CPM.SYS", 0x3400 + 0xA800);
 //					computer.load("CCP-Z80.64K", 0xF400);
-					computer.load("CCP-DR.64K", 0xF400);
 					computer.run(0xF400);
 				}
 				break;
 			case 2:
+				computer.init();
 				computer.load(argv[1]);
 				computer.run(0x0100);
 				break;

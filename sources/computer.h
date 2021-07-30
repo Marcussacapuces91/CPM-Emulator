@@ -105,14 +105,14 @@
  *  0x4a30 : JMP SECTRAN (sector translate subroutine)
  */
  
-template <unsigned MEMORY_SIZE>
+template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
 class Computer {
 
 public:
 	Computer() : 
 		cpu(),
 		memory(),
-		bdos() {
+		bdos<BDOS_ADDR>() {
 
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
@@ -125,7 +125,7 @@ public:
 		std::cout << std::endl;
 	};
 	
-	void init() {
+	void init(const std::string& aFilename = "", const uint16_t aAddr = 0) {
 		cpu.context = this;
 		cpu.read = Computer::read;
 		cpu.write = Computer::write;
@@ -138,40 +138,23 @@ public:
 //		cpu.state.Z_Z80_STATE_MEMBER_PC = 0;
 //		cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
 		
-		
-	// COLD BOOT
-		memory[0x0000] = 0xC3;			// JUMP TO BIOS
-		memory[0x0001] = 0x00;			//
-		memory[0x0002] = 0xF4;			//
+		bdos.init();
 
-		memory[0x0003] = 0;				// Default drive: 0=A
-		memory[0x0004] = 0;				// Default IOBYTE: 0 ou D3 ???
-		
-	// WARM BOOT
-		memory[0x0005] = 0xC3;			// JUMP
-		memory[0x0006] = 0x00;			// BIAS (LL)
-		memory[0x0007] = 0xF4;			// BIAS (HH)
-		
-		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x0100;	// TBUFF + 80h
-		cpu.state.Z_Z80_STATE_MEMBER_C = 0x00;			// Default user 0xF0 & Default disk 0x0F
-
-		memory[0xFC00] = 0x00;			// BIOS SIGNATURE
-		memory[0xFC01] = 0x16;			// CPM ver
-		memory[0xFC02] = 0x00;
-		memory[0xFC03] = 0x00;
-		memory[0xFC04] = 0x00;
-		memory[0xFC05] = 0x00;
-
-
-
+		if (!aFilename.empty() && !aAddr) {
+			load(aFilename, aAddr);
+		}
 		
 	}
-		
+
+/**
+ * Load a binary file in memory.
+ * @param aFile File path to open.
+ * @param aAddr Start address in memory.
+ */ 
 	void load(const std::string& aFile, const uint16_t aAddr=0x0100) {
 		assert(!aFile.empty());
 		
 		auto fs = std::ifstream(aFile, std::ios_base::binary | std::ios_base::in);
-//		fs.exceptions(std::fstream::badbit);
 		if (fs) {
 //			std::clog << "Loading " << aFile << "... ";
 			auto addr = aAddr;
