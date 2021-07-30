@@ -85,9 +85,7 @@ public:
 		memory[0x0006] = (BDOS_ADDR + 6) & 0xFF;	// BDOS+6 (LL)
 		memory[0x0007] = (BDOS_ADDR + 6) >> 8;		// BDOS+6 (HH)
 		
-		cpu.state.Z_Z80_STATE_MEMBER_SP = 0x0100;	// TBUFF + 80h
-		cpu.state.Z_Z80_STATE_MEMBER_C = 0x00;		// Default user 0xF0 & Default disk 0x0F
-
+	// BIOS signature shall be tested by CCP
 		memory[BDOS_ADDR + 0] = 0x00;			// BIOS SIGNATURE
 		memory[BDOS_ADDR + 1] = 0x16;			// CPM ver
 		memory[BDOS_ADDR + 2] = 0x00;
