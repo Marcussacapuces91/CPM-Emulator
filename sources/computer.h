@@ -112,7 +112,7 @@ public:
 	Computer() : 
 		cpu(),
 		memory(),
-		bdos<BDOS_ADDR>() {
+		bdos<MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR>() {
 
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
