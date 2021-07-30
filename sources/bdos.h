@@ -71,12 +71,6 @@ struct __attribute__ ((packed)) FCB_t {
 template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
 class BDos {
 public:
-	BDos(const unsigned aSize, const uint16_t bdosAddr, const uint16_t biosAddr) :
-		MEMORY_SIZE(aSize),
-		BDOS_ADDR(bdosAddr),
-		BIOS_ADDR(biosAddr) {
-	}
-
 	void init() {
 	// COLD BOOT
 		memory[0x0000] = 0xC3;				// JUMP TO BIOS
@@ -959,12 +953,13 @@ protected:
 	}
 
 private:
-
+/*
 	constexpr unsigned MEMORY_SIZE;
 	
 	constexpr uint16_t BDOS_ADDR;
 	
 	constexpr uint16_t BIOS_ADDR;
+*/
 
 	static constexpr auto SECTOR_SIZE = 128;
 
@@ -991,12 +986,12 @@ private:
 /**
  * List of FCB
  */
-	uint16_t FCB[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	uint16_t FCB[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /**
  * List of fstream associated with FCBs.
  */
-	std::fstream* fileStream[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	std::fstream* fileStream[] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 };
 
