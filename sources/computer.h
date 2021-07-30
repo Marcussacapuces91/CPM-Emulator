@@ -114,7 +114,7 @@ public:
 	Computer() : 
 		cpu(),
 		memory(),
-		bdos(MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR) {
+		bdos() {
 
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
@@ -142,13 +142,12 @@ public:
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
-//		cpu.state.Z_Z80_STATE_MEMBER_PC = 0;
-//		cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
 		
 		bdos.init(memory);
 
-		if (!aFilename.empty() && !aAddr) {
+		if (!aFilename.empty() && aAddr) {
 			load(aFilename, aAddr);
+			cpu.state.Z_Z80_STATE_MEMBER_BC = 0;
 		}
 		
 	}
@@ -1157,7 +1156,7 @@ private:
 /**
  * BDOS functions & variables.
  */
- 	BDos bdos;
+ 	BDos<MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR> bdos;
  	
 };
 
