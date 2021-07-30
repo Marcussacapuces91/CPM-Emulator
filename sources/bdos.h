@@ -582,7 +582,7 @@ protected:
 #if LOG
 		std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		if (dma + SECTOR_SIZE >= MEMORY_SIZE) {
+		if (dma + SECTOR_SIZE >= MEMORY_SIZE * 1024) {
 			std::cerr << ">> Writing DMA out of memory!" << std::endl;
 			returnCode(state, 0xFF);	// OK
 			return;
@@ -620,7 +620,7 @@ protected:
 #if LOG
 		std::clog << "Write next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		if (dma + SECTOR_SIZE >= MEMORY_SIZE) {
+		if (dma + SECTOR_SIZE >= MEMORY_SIZE * 1024) {
 			std::cerr << ">> Reading DMA out of memory!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
