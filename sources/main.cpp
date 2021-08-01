@@ -25,7 +25,7 @@
 int main(int argc, char** argv) {
 	
 #ifdef LOG
-	std::ofstream out("log.txt");
+	std::ofstream out("cpm.log");
 	auto old_rdbuf = std::clog.rdbuf();
 	std::clog.rdbuf(out.rdbuf());
 #endif
