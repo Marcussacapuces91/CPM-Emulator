@@ -120,6 +120,7 @@ public:
 			case 0x14 : readSequential(state, memory); break;
 			case 0x15 : writeSequential(state, memory); break;
 			case 0x16 : makeFile(state, memory); break;
+			case 0x18 : returnLogicVector(state, memory); break;
 			case 0x19 : returnCurrentDisk(state, memory); break;
 			case 0x1A : setDMAAddress(state); break;
 			case 0x20 : setGetUserCode(state, memory); break;
@@ -692,7 +693,22 @@ protected:
  * Bit 7 of H corresponds to P: while bit 0 of L corresponds to A:. A bit is set if the corresponding drive is logged in.
  * In DOSPLUS v2.1, the three top bits (for the floating drives) will mirror the status of the corresponding host drives). This does not happen in earlier DOSPLUS / Personal CP/M-86 systems.
  */ 
- 	void returnLogicVector(ZZ80State& state, uint8_t *const memory);
+ 
+ 	void returnLogicVector(ZZ80State& state, uint8_t *const memory) {
+#if LOG
+		std::clog << "Return Logic Vector (actives disks)" << std::endl;
+#endif
+		uint16_t actives = 0;
+		for (auto d = 'A'; d <= 'P'; ++d) {
+			const char dir[2] = { d, '\0' };
+			auto *const pDir = opendir(dir);
+			if (pDir) {
+				actives |= (1 << d);
+				closedir(pDir);
+			}
+		}		
+		returnCode(state, actives);
+	}
 
 /**
  * BDOS function 25 (DRV_GET) - Return current drive
@@ -985,4 +1001,3 @@ private:
 	std::fstream* fileStream[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 };
-
