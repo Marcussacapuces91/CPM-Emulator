@@ -26,6 +26,7 @@
 
 #include "Z80.h"
 #include "bdos.h"
+#include "bios.h"
 
 #define S(x) #x
 #define S_(x) S(x)
@@ -114,16 +115,13 @@ public:
 	Computer() : 
 		cpu(),
 		memory(),
-		bdos() {
+		bdos(),
+		bios() {
 
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
 //		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
 		std::cout << "Copyright (c) 1999-2018 Manuel Sainz de Baranda y Goni." << std::endl;
 		std::cout << "Released under the terms of the GNU General Public License v3." << std::endl;
-		std::cout << std::endl;
-
-		std::cout << "CP/M 2.2 Emulator " << MEMORY_SIZE << "kb" << std::endl;
-		std::cout << "Copyright (c) 2021 by M. Sibert" << std::endl;
 		std::cout << std::endl;
 	};
 	
@@ -143,6 +141,7 @@ public:
 		z80_power(&cpu, true);
 		z80_reset(&cpu);
 		
+		bios.init(memory);
 		bdos.init(memory);
 
 		if (!aFilename.empty() && aAddr) {
@@ -200,6 +199,9 @@ public:
 			} 
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0003) {	// Warm boot
+#ifdef LOG
+				logSpecAddr(cpu.state);
+#endif
 				return;
 			} 
 			
@@ -208,10 +210,23 @@ public:
 				logSpecAddr(cpu.state);
 #endif
 				bdos.function(cpu.state, memory);
+			// Return
 				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
 				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
 				continue;
 			}
+
+			if (cpu.state.Z_Z80_STATE_MEMBER_PC >= BIOS_ADDR) {	// BIOS
+#ifdef LOG
+				logSpecAddr(cpu.state);
+#endif
+				bios.function(cpu.state, memory);
+			// Return
+				cpu.state.Z_Z80_STATE_MEMBER_PC = memory[cpu.state.Z_Z80_STATE_MEMBER_SP++];
+				cpu.state.Z_Z80_STATE_MEMBER_PC += memory[cpu.state.Z_Z80_STATE_MEMBER_SP++] * 256U;
+				continue;
+			}
+
 #ifdef LOG
 			logSpecAddr(cpu.state);
 			logInst(cpu.state);
@@ -523,6 +538,7 @@ protected:
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
 				std::clog << "LD (" << std::hex << std::setw(4) << std::setfill('0') << addr << "h),HL" << std::endl;
+				logState(state);
 				break;
 			}
 
@@ -1105,6 +1121,10 @@ protected:
 			" N:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x02) <<
 			" C:" << bool(state.Z_Z80_STATE_MEMBER_F & 0x01);
 		std::clog << std::endl;		
+		std::clog << "BC:" << std::hex << int(state.Z_Z80_STATE_MEMBER_BC) << "h\t\t";
+		std::clog << "DE:" << std::hex << int(state.Z_Z80_STATE_MEMBER_DE) << std::endl;
+		std::clog << "HL:" << std::hex << int(state.Z_Z80_STATE_MEMBER_HL) << "h\t\t";
+		std::clog << "SP:" << std::hex << int(state.Z_Z80_STATE_MEMBER_SP) << std::endl;
 	}
 	
 	inline
@@ -1132,7 +1152,7 @@ protected:
 	}
 	
 	bool parity(const uint8_t N) {
-		register uint8_t y = N ^ (N >> 1);
+		uint8_t y = N ^ (N >> 1);
 		y = y ^ (y >> 2);
 		y = y ^ (y >> 4);
 		y = y ^ (y >> 8);
@@ -1156,7 +1176,11 @@ private:
 /**
  * BDOS functions & variables.
  */
- 	BDos<MEMORY_SIZE, BDOS_ADDR, BIOS_ADDR> bdos;
+ 	BDos<MEMORY_SIZE, BDOS_ADDR> bdos;
+ 	
+/**
+ * BDOS functions & variables.
+ */
+ 	BIOS<MEMORY_SIZE, BIOS_ADDR> bios;
  	
 };
-
