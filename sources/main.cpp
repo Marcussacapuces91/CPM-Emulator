@@ -14,18 +14,25 @@
  * limitations under the License.
  */
 
-#include <iostream>
-#include <fstream>
-#include <exception>
-
 #define LOG		1
 
 #include "computer.h"
 
+#include <iostream>
+
+#if __cplusplus < 201703L
+#error "Need C++17 compiler for using <filesystem>"
+#endif
+#include <filesystem>
+
+#include <fstream>
+#include <exception>
+
 int main(int argc, char** argv) {
-	
+
 #ifdef LOG
-	std::ofstream out("cpm.log");
+	std::filesystem::path path(argv[0]);
+	std::ofstream out(path.stem().string() + ".log");
 	auto old_rdbuf = std::clog.rdbuf();
 	std::clog.rdbuf(out.rdbuf());
 #endif
@@ -37,13 +44,11 @@ int main(int argc, char** argv) {
 				while (true) {
 					computer.init("CCP-DR.64K", 0xF400);
 //					computer.load("CPM.SYS", 0x3400 + 0xA800);
-//					computer.load("CCP-Z80.64K", 0xF400);
 					computer.run(0xF400);
 				}
 				break;
 			case 2:
-				computer.init();
-				computer.load(argv[1]);
+				computer.init(argv[1], 0x0100);
 				computer.run(0x0100);
 				break;
 			default:
