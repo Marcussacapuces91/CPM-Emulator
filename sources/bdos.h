@@ -68,26 +68,21 @@ struct __attribute__ ((packed)) FCB_t {
 };
 
 
-template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
+template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR>
 class BDos {
 public:
 	void init(uint8_t *const memory) {
-	// COLD BOOT
-		memory[0x0000] = 0xC3;				// JUMP TO BIOS
-		memory[0x0001] = BIOS_ADDR & 0xFF;	//
-		memory[0x0002] = BIOS_ADDR >> 8;	//
-
 		memory[0x0003] = 0;				// Default drive: 0=A
 		memory[0x0004] = 0xD3;			// Default IOBYTE: 0 ou D3 ???
 		
-	// WARM BOOT
+	// WARM BOOT (BDOS entry bdose)
 		memory[0x0005] = 0xC3;						// JUMP
 		memory[0x0006] = (BDOS_ADDR + 6) & 0xFF;	// BDOS+6 (LL)
 		memory[0x0007] = (BDOS_ADDR + 6) >> 8;		// BDOS+6 (HH)
 		
-	// BIOS signature shall be tested by CCP
-		memory[BDOS_ADDR + 0] = 0x00;			// BIOS SIGNATURE
-		memory[BDOS_ADDR + 1] = 0x16;			// CPM ver
+	// BDOS signature shall be tested by CCP
+		memory[BDOS_ADDR + 0] = 0x00;			// BDOS SIGNATURE
+		memory[BDOS_ADDR + 1] = 0x16;			// CPM ver 22 dec.
 		memory[BDOS_ADDR + 2] = 0x00;
 		memory[BDOS_ADDR + 3] = 0x00;
 		memory[BDOS_ADDR + 4] = 0x00;
