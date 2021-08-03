@@ -16,14 +16,18 @@
 
 #pragma once
 
-#include "Z80.h"
+// #include "Z80.h"
 
-#include <dirent.h>
-#include <sys/stat.h>
-#include <cstring>
-#include <iostream>
-#include <iomanip>
-// #include <filesystem>
+// #include <dirent.h>
+// #include <sys/stat.h>
+// #include <cstring>
+// #include <iostream>
+// #include <iomanip>
+
+#if __cplusplus < 201703L
+#error "Need C++17 compiler for using <filesystem>"
+#endif
+#include <filesystem>
 
 // #define LOG 1
 
@@ -96,7 +100,6 @@ public:
  */	
 	void function(ZZ80State& state, uint8_t *const memory) {
 		assert(memory);
-		
 		switch (state.Z_Z80_STATE_MEMBER_C) {
 			case 0x01 : consoleInput(state); break;
 			case 0x02 : consoleOutput(state); break;
@@ -115,15 +118,14 @@ public:
 			case 0x14 : readSequential(state, memory); break;
 			case 0x15 : writeSequential(state, memory); break;
 			case 0x16 : makeFile(state, memory); break;
-			case 0x18 : returnLogicVector(state, memory); break;
+			case 0x18 : returnLogicVector(state); break;
 			case 0x19 : returnCurrentDisk(state, memory); break;
 			case 0x1A : setDMAAddress(state); break;
+			case 0x1D : getROVector(state); break;
 			case 0x20 : setGetUserCode(state, memory); break;
-			
 			default:
 				std::cerr << "Register C: " << std::hex << std::setw(2) << std::setfill('0') << unsigned(state.Z_Z80_STATE_MEMBER_C) << "h";
-				std::cerr << " : Unknown BDOS function!" << std::endl;
-				
+				std::cerr << ": Unknown BDOS function!" << std::endl;
 				throw std::runtime_error("Un-emulated BDOS function");
 				break;
 		}
@@ -218,6 +220,7 @@ protected:
 			returnCode(state, n ? c : 0x00);
 		} else {
 			std::cout << char(state.Z_Z80_STATE_MEMBER_E);
+			returnCode(state, 0x00);	// ok
 		}
 	}
 	
@@ -244,11 +247,12 @@ protected:
  * Display a string of ASCII characters, terminated with the $ character. Thus the string may not contain $ characters - so, for example, the VT52 cursor positioning command ESC Y y+32 x+32 will not be able to use row 4.
  * Under CP/M 3 and above, the terminating character can be changed using BDOS function 110.
  */
-	void printString(ZZ80State& state, const uint8_t *const memory) const {
+	void printString(ZZ80State& state, const uint8_t memory[]) const {
+		assert(memory);
 #if LOG
 		std::clog << "Output string (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 #endif
-		const auto* c = &memory[state.Z_Z80_STATE_MEMBER_DE];
+		const auto* c = memory + state.Z_Z80_STATE_MEMBER_DE;
 		while (*c != '$') {
 			std::cout << char(*(c++));
 		}
@@ -269,7 +273,8 @@ protected:
  * If DE=0 (in 16-bit versions, DX=0FFFFh) the next byte contains the number of bytes already in the buffer; otherwise this is ignored. On return from the function, it contains the number of bytes present in the buffer.
  * The bytes typed then follow. There is no end marker.
  */
-	void readConsoleBuffer(ZZ80State& state, uint8_t *const memory) {
+	void readConsoleBuffer(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 #if LOG
 		std::clog << "Buffered console input (Buffer " << std::hex << state.Z_Z80_STATE_MEMBER_DE << "h)" << std::endl;
 //			std::clog << "mx" << unsigned(memory[DE+0]) << std::endl;
@@ -280,10 +285,8 @@ protected:
 		line = line.substr(0, memory[state.Z_Z80_STATE_MEMBER_DE]);
 
 		memory[state.Z_Z80_STATE_MEMBER_DE + 1] = line.length();
-		auto *s = memory + state.Z_Z80_STATE_MEMBER_DE + 2;
-		for (auto i = line.begin(); i != line.end(); ++i) {
-			*s++ = *i;
-		}
+		auto* s = memory + state.Z_Z80_STATE_MEMBER_DE + 2;
+		for (auto& i : line) *(s++) = i;
 		returnCode(state, 0);
 	}
 
@@ -343,11 +346,12 @@ protected:
  * In versions 1 and 2, logs in drive A: and returns 0FFh if there is a file present whose name begins with a $, otherwise 0. Replacement BDOSses may modify this behaviour.
  * In multitasking versions, returns 0 if succeeded, or 0FFh if other processes have files open on removable or read-only drives. 
  */
-	void resetDiskSystem(ZZ80State& state, uint8_t *const memory) {
+	void resetDiskSystem(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 #if LOG
 		std::clog << "Reset drive ; default to A" << std::endl;
 #endif
-		memory[USER_DRIVE] = 0;
+		memory[USER_DRIVE] = 0x00;	// USER: 0, DRIVE: 0 (A)
 		dma = 0x80;
 		returnCode(state, 0);
 	}
@@ -359,24 +363,25 @@ protected:
  * The drive number passed to this routine is 0 for A:, 1 for B: up to 15 for P:.
  * Sets the currently selected drive to the drive in A; logs in the disc. Returns 0 if successful or 0FFh if error. Under MP/M II and later versions, H can contain a physical error number. 
  */
- 	void selectDisk(ZZ80State& state, uint8_t *const memory) {
-		if (state.Z_Z80_STATE_MEMBER_E <= 15) {
+ 	void selectDisk(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 #if LOG
-			std::clog << "Select disc to " << char('A' + state.Z_Z80_STATE_MEMBER_E) << std::endl;
+		std::clog << "Select disc to " << char('A' + state.Z_Z80_STATE_MEMBER_E) << std::endl;
 #endif
-			const char dir[2] = { char('A' + state.Z_Z80_STATE_MEMBER_E), '\0' };
-			struct stat st;
-			const int err = stat(dir, &st);
-			if (!err) {
-				memory[USER_DRIVE] = (memory[USER_DRIVE] & 0xF0) | (state.Z_Z80_STATE_MEMBER_E & 0xF0);
-				returnCode(state, 0);
-				return;
-			}
-			state.Z_Z80_STATE_MEMBER_H = errno;
-			std::cerr << ">> Error on path '" << char('A' + state.Z_Z80_STATE_MEMBER_E) << "/': " << strerror(errno) << "!" << std::endl;
-		} else {
+		if (state.Z_Z80_STATE_MEMBER_E > 15) {
 			std::cerr << ">> Invalid disk (A-P only)!" << std::endl;
+			returnCode(state, 0xFF);
+			return;
 		}
+		
+		const char dir[] = { char('A' + state.Z_Z80_STATE_MEMBER_E), '\0' };
+		const std::filesystem::path path(dir);
+		if (std::filesystem::exists(path)) {
+			memory[USER_DRIVE] = (memory[USER_DRIVE] & 0xF0) | (state.Z_Z80_STATE_MEMBER_E & 0x0F);
+			returnCode(state, 0x00);
+			return;
+		}
+		std::cerr << ">> Path '" << char('A' + state.Z_Z80_STATE_MEMBER_E) << "/' do not exists!" << std::endl;
 		returnCode(state, 0xFF);
 	}
 	
@@ -396,8 +401,9 @@ protected:
  *  * F7' is set if the file is read-only because writing is password protected and no password was supplied;
  *  * F8' is set if the file is read-only because it is a User 0 system file opened from another user area.
  */
-	void openFile(ZZ80State& state, uint8_t *const memory) {
-		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+	void openFile(ZZ80State& state, const uint8_t memory[]) {
+		assert(memory);
+		const FCB_t *const pFCB = reinterpret_cast<const FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 		char filename[15];	// DIR + "/" + NAME + "." + EXT
 		fcbToFilename(pFCB, (memory[USER_DRIVE] & 0x0F), filename);
 
@@ -430,7 +436,8 @@ protected:
  * Under CP/M 3, if F5' is set to 1 then the pending data are written and the file is made consistent, but it remains open.
  * If A=0FFh, CP/M 3 returns a hardware error in H and B.
  */
- 	void closeFile(ZZ80State& state, uint8_t *const memory) {
+ 	void closeFile(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Close file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
@@ -457,33 +464,36 @@ protected:
  * Returns A=0FFh if error (CP/M 3 returns a hardware error in H and B), or A=0-3 if successful. The value returned can be used to calculate the address of a memory image of the directory entry; it is to be found at DMA+A*32.
  * Under CP/M-86 v4, if the first byte of the FCB is '?' or bit 7 of the byte is set, subdirectories as well as files will be returned by this search.
  */
-	void searchForFirst(ZZ80State& state, uint8_t *const memory) {
+	void searchForFirst(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		const FCB_t *const pFCB = reinterpret_cast<const FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Search for first (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : (memory[USER_DRIVE] & 0x0F))), '\0' };
+		const char dir[] = { char('A' + (pFCB->DR ? pFCB->DR-1 : (memory[USER_DRIVE] & 0x0F))), '/', '\0' };
 
 		memcpy(filter, pFCB->filename, 11);
 		filter[11] = '\0';
-		
-		pDir = opendir(dir);
-		if (pDir == NULL) {
-			std::cerr << ">> Error on path '/" << dir << "': " << strerror(errno) << "!" << std::endl;
+
+		const std::filesystem::path path(dir);
+		std::error_code ec;
+		di = std::filesystem::directory_iterator(path, ec);		// New directory_iterator
+		if (ec) {
+			std::cerr << ">> Error looking for path '" << path.string() << "': " << ec.message() << "!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
 		}
 
 		char filename[12];
-		if (findFile(pDir, filter, filename)) {
+		if (findFile(di, filter, filename)) {	// first find
+			++di;	// go to next
 			memory[dma] = pFCB->DR;
 			memcpy(memory + dma + 1, filename, 11);
 			returnCode(state, 0x00);	// OK
-		} else {
+		} else {	// cant find any
 			returnCode(state, 0xFF);	// KO
-			closedir(pDir);
-			pDir = NULL;
 		}
+		return;
 	}
 
 /**
@@ -494,26 +504,21 @@ protected:
  * Function 18 behaves exactly as number 17, but finds the next occurrence of the specified file after the one returned last time. The FCB parameter is not documented, but Jim Lopushinsky states in LD301.DOC:
  * In none of the official Programmer's Guides for any version of CP/M does it say that an FCB is required for Search Next (function 18). However, if the FCB passed to Search First contains an unambiguous file reference (i.e. no question marks), then the Search Next function requires an FCB passed in reg DE (for CP/M-80) or DX (for CP/M-86).
  */
-	void searchForNext(ZZ80State& state, uint8_t *const memory) {
+	void searchForNext(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Search for next (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
-		if (pDir == NULL) {
-			std::cerr << ">> No search for first!" << std::endl;
-			returnCode(state, 0xFF);	// KO
-			return;
-		}
 
 		char filename[12];
-		if (findFile(pDir, filter, filename)) {
+		if (findFile(di, filter, filename)) {
+			++di;
 			memory[dma] = pFCB->DR;
 			memcpy(memory + dma + 1, filename, 11);
 			returnCode(state, 0x00);	// OK
 		} else {
 			returnCode(state, 0xFF);	// KO
-			closedir(pDir);
-			pDir = NULL;
 		}
 	}
 
@@ -522,40 +527,38 @@ protected:
  */
  	void deleteFile(ZZ80State& state, uint8_t *const memory) {
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
-		const char dir[2] = { char('A' + (pFCB->DR ? pFCB->DR-1 : (memory[USER_DRIVE]) & 0x0F)), '\0' };
 #if LOG
 		std::clog << "Delete file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
+		const char dir[] = { char('A' + (pFCB->DR ? pFCB->DR-1 : (memory[USER_DRIVE]) & 0x0F)), '/', '\0' };
 
 		char filter[12];
 		memcpy(filter, pFCB->filename, 11);
 		filter[11] = '\0';
 		
-		const auto pDir = opendir(dir);
-		if (pDir == NULL) {
-			std::cerr << ">> Error on path '/" << dir << "': " << strerror(errno) << "!" << std::endl;
+		const std::filesystem::path path(dir);
+		std::error_code ec;
+		std::filesystem::directory_iterator di(path, ec);		// New directory_iterator
+		if (ec) {
+			std::cerr << ">> Error looking for path '" << path.string() << "': " << ec.message() << "!" << std::endl;
 			returnCode(state, 0xFF);	// KO
 			return;
-		}
+		}		
 
 		char cpm[12];
 		unsigned nb = 0;
-		while (findFile(pDir, filter, cpm)) {
-			char dos[13];
-			filenameCPM2DOS(cpm, dos);
-	
-			char filename[15];
-			strcat(strcat(strcpy(filename, dir), "/"), dos);
-
-			if (remove(filename)) {	// error
-				std::cerr << ">> Error deleting file '" << filename << "': " << strerror(errno) << "!" << std::endl;
-				returnCode(state, 0xFF);
-				closedir(pDir);
+		while (findFile(di, filter, cpm)) {
+			std::filesystem::remove(di->path(), ec);
+			if (ec) {
+				std::cerr << ">> Error removing '" << di->path().string() << "': " << ec.message() << "!" << std::endl;
+				returnCode(state, 0xFF);	// KO
 				return;
-			} else ++nb;
+			} else {
+				++nb;
+				++di;
+			}
 		}
-		returnCode(state, nb ? 0x00 : 0xFF);
-		closedir(pDir);
+		returnCode(state, nb ? 0x00 : 0xFF);	// one or more file removed
 	}
 
 /**
@@ -571,7 +574,8 @@ protected:
  *  0FFh hardware error.
  * If on return A is not 0FFh, H contains the number of 128-byte records read before the error (MP/M II and later).
  */
- 	void readSequential(ZZ80State& state, uint8_t *const memory) {
+ 	void readSequential(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
@@ -609,7 +613,8 @@ protected:
 /**
  * BDOS function 21
  */
-	void writeSequential(ZZ80State& state, uint8_t *const memory) {
+	void writeSequential(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Write next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
@@ -644,7 +649,8 @@ protected:
  *  DEFS    8   ; Password
  *  DEFB    1   ; Password mode
  */ 
-	void makeFile(ZZ80State& state, uint8_t *const memory) {
+	void makeFile(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Make file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
@@ -679,7 +685,7 @@ protected:
  * Renames the file specified to the new name, stored at FCB+16. This function cannot rename across drives so the "drive" bytes of both filenames should be identical. Returns A=0-3 if successful; A=0FFh if error. Under CP/M 3, if H is zero then the file could not be found; if it is nonzero it contains a hardware error number.
  * Under Concurrent CP/M, set F5' if an extended lock on the file should be held through the rename. Otherwise the lock will be released.
  */ 
- 	void renameFile(ZZ80State& state, uint8_t *const memory);
+ 	void renameFile(ZZ80State& state, uint8_t memory[]);
  	
 /**
  * BDOS function 24 (DRV_LOGINVEC) - Return bitmap of logged-in drives
@@ -689,18 +695,16 @@ protected:
  * In DOSPLUS v2.1, the three top bits (for the floating drives) will mirror the status of the corresponding host drives). This does not happen in earlier DOSPLUS / Personal CP/M-86 systems.
  */ 
  
- 	void returnLogicVector(ZZ80State& state, uint8_t *const memory) {
+ 	void returnLogicVector(ZZ80State& state) {
 #if LOG
 		std::clog << "Return Logic Vector (actives disks)" << std::endl;
 #endif
 		uint16_t actives = 0;
-		for (auto d = 'A'; d <= 'P'; ++d) {
-			const char dir[2] = { d, '\0' };
-			auto *const pDir = opendir(dir);
-			if (pDir) {
-				actives |= (1 << d);
-				closedir(pDir);
-			}
+		for (auto d = 0; d <= 15; ++d) {
+			const char dir[] = { char('A' + d), '\0' };
+			const std::filesystem::path path(dir);
+			const auto status = std::filesystem::status(path);
+			if (exists(status) && is_directory(status)) actives |= (1 << d);
 		}		
 		returnCode(state, actives);
 	}
@@ -710,7 +714,8 @@ protected:
  * Supported by: All versions
  * Entered with C=19h. Returns drive in A. Returns currently selected drive. 0 => A:, 1 => B: etc.
  */
- 	void returnCurrentDisk(ZZ80State& state, uint8_t *const memory) {
+ 	void returnCurrentDisk(ZZ80State& state, const uint8_t memory[]) {
+		assert(memory);
 #if LOG
 		std::clog << "Get drive (" << char('A' + (memory[USER_DRIVE] & 0x0F)) << ')' << std::endl;
 #endif
@@ -756,7 +761,20 @@ protected:
  * Entered with C=1Dh. Returns bitmap in HL.
  * Bit 7 of H corresponds to P: while bit 0 of L corresponds to A:. A bit is set if the corresponding drive is set to read-only in software.
  */
-	void getROVector(ZZ80State& state, uint8_t *const memory);
+	void getROVector(ZZ80State& state) {
+#if LOG
+		std::clog << "Return RO Vector (read-only disks)" << std::endl;
+#endif
+		uint16_t ro = 0;
+		for (auto d = 0; d <= 15; ++d) {
+			const char dir[] = { char('A' + d), '\0' };
+			const std::filesystem::path path(dir);
+			const auto status = std::filesystem::status(path);
+			const auto perms = status.permissions();
+			if (exists(status) && is_directory(status)) ro |= (0 << d);
+		}
+		returnCode(state, ro);
+	}
 
 /**
  * BDOS function 30 (F_ATTRIB) - set file attributes
@@ -784,7 +802,8 @@ protected:
  * Set current user number. E should be 0-15, or 255 to retrieve the current user number into A. Some versions can use user areas 16-31, but these should be avoided for compatibility reasons.
  * DOS+ returns the number set in A.
  */
-	void setGetUserCode(ZZ80State& state, uint8_t *const memory) {
+	void setGetUserCode(ZZ80State& state, uint8_t memory[]) {
+		assert(memory);
 		if (state.Z_Z80_STATE_MEMBER_E == 0xFF) {
 #if LOG
 			std::clog << "Get user number (" << unsigned(memory[USER_DRIVE] >> 4) << ")" << std::endl;
@@ -832,7 +851,7 @@ protected:
 
 
 /**
- * Return a free fstream ans set it as occuped.
+ * Return a free fstream and set it as occuped.
  * @return a reference on a free fstream.
  */
 	std::fstream& getStream(const uint16_t aFCB) {
@@ -869,7 +888,8 @@ protected:
 		throw(std::runtime_error("Can't release this stream in BDOS::getStream!"));
 	}
 
-
+/**
+ */
 	inline
 	void returnCode(ZZ80State& state, const uint16_t hl) const  {
 		state.Z_Z80_STATE_MEMBER_HL = hl;
@@ -877,12 +897,17 @@ protected:
 		state.Z_Z80_STATE_MEMBER_B = state.Z_Z80_STATE_MEMBER_H;
 	}
 
+/**
+ */
 	inline
 	void returnCode(ZZ80State& state, const uint8_t a, const uint8_t b) const  {
 		state.Z_Z80_STATE_MEMBER_L = state.Z_Z80_STATE_MEMBER_A = a;
 		state.Z_Z80_STATE_MEMBER_H = state.Z_Z80_STATE_MEMBER_B = b;
 	}
 
+/**
+ * Convert CP/M file name (space padding) to Dos (dot separator).
+ */
 	void filenameCPM2DOS(const char cpm[11], char dos[]) const {
 		char name[9];
 		memcpy(name, cpm, 8);
@@ -903,6 +928,9 @@ protected:
 		strcat(strcat(dos, "."), ext);
 	}
 
+/**
+ * Convert Dos file name (dot separator) to CP/M (space padding).
+ */
 	bool filenameDOS2CPM(const char dos[], char cpm[11]) const {
 		char f[11];
 		memset(f, ' ', 11);
@@ -923,34 +951,34 @@ protected:
 		memcpy(cpm, f, 11);
 		return true;
 	}
-
-	bool findFile(DIR *const pDir, const char filter[12], char filename[12]) const {
-		struct dirent* pEnt;
-		while (true) {
-			auto* pEnt = readdir(pDir);
-			
-			if (pEnt == NULL) {
-				return false;
-			}
-				
-			if ((!strcmp(pEnt->d_name, ".")) || (!strcmp(pEnt->d_name, ".."))) continue;	// "." & ".."
-
-			if (!filenameDOS2CPM(pEnt->d_name, filename)) continue;	// invalide CPM name
-			filename[11] = '\0';
-
-			bool ok = true;
-			for (auto i = 0; i < 11; ++i) {
-				if ((filter[i] != '?') && (filter[i] != filename[i])) {
-					ok = false;
-					break;
+	
+/**
+ * Find a conform file giving a Directory_Iterator.
+ */
+	bool findFile(std::filesystem::directory_iterator& di, const char filter[12], char filename[12]) const {
+		while (di != end(di)) {
+			const auto& file = *di;		// Directory Entry
+			if (file.is_regular_file() && 
+				filenameDOS2CPM(file.path().filename().string().c_str(), filename)) {
+				filename[11] = '\0';
+		
+				bool ok = true;
+				for (auto i = 0; i < 11; ++i) {
+					if ((filter[i] != '?') && (filter[i] != filename[i])) {
+						ok = false;
+						break;
+					}
 				}
+				if (ok) return true;	// valid for filter
 			}
-			if (!ok) continue;	// filename invalid for filter
-
-			return true;
+			++di;
 		}
+		return false;
 	}
 	
+/**
+ * Extract a Dos path/filename from FCB.
+ */
 	void fcbToFilename(const FCB_t *const pFCB, const unsigned char drive, char path[15]) const {
 		// filename[15];	// DIR + "/" + NAME + "." + EXT
 
@@ -962,7 +990,9 @@ protected:
 	}
 
 private:
-
+/**
+ * Sector size (fixed to 128 for CP/M 2.2.
+ */
 	static constexpr auto SECTOR_SIZE = 128;
 
 /**
@@ -978,7 +1008,7 @@ private:
 /**
  * Scanning a path.
  */
-	DIR* pDir = NULL;
+	std::filesystem::directory_iterator di;
 
 /**
  * Filter used during scanning a path.
