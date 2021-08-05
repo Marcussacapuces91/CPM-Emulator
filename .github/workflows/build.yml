@@ -42,7 +42,7 @@ jobs:
     - name: Windows Compile & Link
       working-directory: ./sources
       run: |
-        g++ -c main.cpp -o main.o -std=c++17 -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
+        g++ -c main.cpp -o main.o -std=c++17 -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI -lstc++fs
         gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D 'CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\"' -D CPU_Z80_HIDE_ABI
         g++ main.o Z80.o -o cpm -static -static-libgcc -static-libstdc++ -lstc++fs
       if: ${{ contains(matrix.os, 'windows') }}
@@ -50,7 +50,7 @@ jobs:
     - name: Linux Compile & Link
       working-directory: ./sources
       run: |
-        g++ -c main.cpp -o main.o -std=c++17 -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
+        g++ -c main.cpp -o main.o -std=c++17 -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI -lstc++fs
         gcc -c Z80.c -o Z80.o -D CPU_Z80_USE_LOCAL_HEADER -D CPU_Z80_STATIC -D CPU_Z80_DEPENDENCIES_H=\"Z80-support.h\" -D CPU_Z80_HIDE_ABI
         g++ main.o Z80.o -o cpm -static -static-libgcc -static-libstdc++ -lstc++fs
       if: ${{ contains(matrix.os, 'ubuntu') }}
