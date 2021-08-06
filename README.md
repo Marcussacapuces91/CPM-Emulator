@@ -31,6 +31,11 @@ edit autoexec.bat
 ```
 -->
 
+Copy localy the CCP-DR.64K file from https://github.com/MockbaTheBorg/RunCPM/tree/master/CCP
+or another CCP version and change loading & running parameters accordingly in source code ([main.cpp#L45](https://github.com/Marcussacapuces91/CPM-Emulator/blob/main/sources/main.cpp#L45) )
+
+Create dir /A, /B, _etc._ as you need. They will simulate local CP/M disks. Only files with 8+3 filename will be seenable. Try `DIR a:`.
+
 ## Usage example
 
 ### Start emulator & load CP/M (as default)
@@ -68,6 +73,8 @@ _For more examples and usage, please refer to the [Wiki][wiki]._
   Copier les fichiers suivant dans le répertoire /source :
     * [Z80.h](https://github.com/redcode/Z80/blob/master/API/emulation/CPU/Z80.h) et 
     * [Z80.c](https://github.com/redcode/Z80/blob/master/sources/Z80.c).
+  
+  Vous pouvez modifier `Z80.h` selon la proposition https://github.com/redcode/Z80/pull/3 pour éviter des _warnings_.
 
 
 * Ajouter aussi le code, sur la base du commentaire (https://github.com/redcode/Z/issues/3#issuecomment-520175069) pour remplacer la [lib Z](https://github.com/redcode/Z) qui ne compile pas sous GCC :
