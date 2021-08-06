@@ -438,7 +438,7 @@ protected:
  */
  	void closeFile(ZZ80State& state, uint8_t memory[]) {
 		assert(memory);
-		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+//		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Close file (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
@@ -576,7 +576,7 @@ protected:
  */
  	void readSequential(ZZ80State& state, uint8_t memory[]) {
 		assert(memory);
-		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+//		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Read next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
@@ -615,7 +615,7 @@ protected:
  */
 	void writeSequential(ZZ80State& state, uint8_t memory[]) {
 		assert(memory);
-		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
+//		FCB_t *const pFCB = reinterpret_cast<FCB_t *const>(memory + state.Z_Z80_STATE_MEMBER_DE);
 #if LOG
 		std::clog << "Write next record (FCB: " << std::hex << unsigned(state.Z_Z80_STATE_MEMBER_DE) << "h)" << std::endl;
 #endif
@@ -770,8 +770,11 @@ protected:
 			const char dir[] = { char('A' + d), '\0' };
 			const std::filesystem::path path(dir);
 			const auto status = std::filesystem::status(path);
-			const auto perms = status.permissions();
+//			const auto perms = status.permissions();
 			if (exists(status) && is_directory(status)) ro |= (0 << d);
+
+/* TODO (#1#): Terminer cette fonction avec la 
+               détection du readonly */
 		}
 		returnCode(state, ro);
 	}
@@ -938,13 +941,13 @@ protected:
 		const auto p = strchr(dos, '.');
 		const auto l = p ? p - dos : strlen(dos);
 		if (l > 8) return false;	// Invalid CPM name
-		for (auto i = 0; i < l; ++i) {
+		for (unsigned i = 0; i < l; ++i) {
 			f[i] = toupper(dos[i]);
 		}
 		if (p) {
 			const auto l = strlen(dos) - (p - dos + 1);
 			if (l > 3) return false;
-			for (auto i = 0; i < l; ++i) {
+			for (unsigned i = 0; i < l; ++i) {
 				f[8 + i] = toupper(p[i + 1]);
 			}
 		}
@@ -993,17 +996,17 @@ private:
 /**
  * Sector size (fixed to 128 for CP/M 2.2.
  */
-	static constexpr auto SECTOR_SIZE = 128;
+	static constexpr auto SECTOR_SIZE = 128U;
 
 /**
  * Current address for user (H) & drive (L)
  */
-	static constexpr auto USER_DRIVE = 4;
+	static constexpr auto USER_DRIVE = 4U;
 
 /**
  * DMA's address.
  */
-	uint16_t dma = 128;
+	uint16_t dma = 128U;
 
 /**
  * Scanning a path.
