@@ -40,9 +40,9 @@
  *
  * Reserved location in page 0
  *
- * Main memory page zero, between locations 0H and 0FFH, contains several segments of code and
- * data that are used during CP/M processing. The code and data areas are given in the following
- * table.
+ * Main memory page zero, between locations 0H and 0FFH, contains several 
+ * segments of code and data that are used during CP/M processing. The code and
+ * data areas are given in the following table.
  *
  * Table 6-6. Reserved Locations in Page Zero
  
@@ -106,6 +106,8 @@
  *  0x4a30 : JMP SECTRAN (sector translate subroutine)
  */
  
+#define UNUSED __attribute__ ((unused))
+ 
 template <unsigned MEMORY_SIZE, uint16_t BDOS_ADDR, uint16_t BIOS_ADDR>
 class Computer {
 public:
@@ -118,8 +120,8 @@ public:
 		bdos(),
 		bios() {
 
+/// Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi."
 		std::cout << "Zilog Z80 CPU Emulator" << std::endl;
-//		std::cout << "Copyright © 1999-2018 Manuel Sainz de Baranda y Goñi." << std::endl;
 		std::cout << "Copyright (c) 1999-2018 Manuel Sainz de Baranda y Goni." << std::endl;
 		std::cout << "Released under the terms of the GNU General Public License v3." << std::endl;
 		std::cout << std::endl;
@@ -237,7 +239,9 @@ public:
 #endif
 			if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x76)  {		// HALT
 				constexpr char HALT_INSTRUCTION[] = "HALT instruction";
-				std::cerr << ">> "<< HALT_INSTRUCTION << " at " << std::hex << std::setw(4) << cpu.state.Z_Z80_STATE_MEMBER_PC << "!" << std::endl;
+				std::cerr << ">> "<< HALT_INSTRUCTION << " at "
+						  << std::hex << std::setw(4) 
+						  << cpu.state.Z_Z80_STATE_MEMBER_PC << "!" << std::endl;
 				throw std::runtime_error(HALT_INSTRUCTION);
 			}
 			z80_run(&cpu, 1);	// return cycles
@@ -294,7 +298,7 @@ protected:
  * @param address Port address to be read.
  * @return read value. 
  */	
-	static zuint8 in(void* context, zuint16 address) {
+	static zuint8 in(UNUSED void* context, UNUSED zuint16 address) {
 		throw std::runtime_error("Port IN Not implemented at " __FILE__ ": " S__LINE__);
 		return 0;
 	}
@@ -305,11 +309,15 @@ protected:
  * @param address Port address to be write.
  * @param value Value to be write in ports.
  */	
-	static void out(void* context, zuint16 address, zuint8 value) {
+	static void out(UNUSED void* context, UNUSED zuint16 address, UNUSED zuint8 value) {
 		throw std::runtime_error("Port OUT not implemented at " __FILE__ ": " S__LINE__);
 	}
 
-	static zuint32 int_data(void* context) {
+/**
+ * Callback used by Z80 to report hardware interrupt with data.
+ * @param context Pointer on Computer's instance.
+ */	
+	static zuint32 int_data(UNUSED void* context) {
 		throw std::runtime_error("Interrupt + data not implemented at " __FILE__ ": " S__LINE__);
 		return 0;
 	}
@@ -497,7 +505,8 @@ protected:
 				logAddrInst(PC, inst, memory[PC+1]);
 				std::clog << "DJNZ " << (memory[PC+1] > 127 ? "-" : "+")
 						  << (memory[PC+1] > 127 ? 256 - memory[PC+1] : memory[PC+1])
-						  << " \t\t; " << std::hex << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
+						  << " \t\t; " << std::hex 
+						  << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
 						  << "h" << std::endl;
 				break;
 			}
@@ -512,7 +521,8 @@ protected:
 				logAddrInst(PC, inst, memory[PC+1]);
 				std::clog << "JR " << (memory[PC+1] > 127 ? "-" : "+")
 						  << (memory[PC+1] > 127 ? 256 - memory[PC+1] : memory[PC+1])
-						  << " \t\t; " << std::hex << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
+						  << " \t\t; " << std::hex 
+						  << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
 						  << "h" << std::endl;
 				break;
 			}
@@ -532,9 +542,11 @@ protected:
 				if (inst == 0x28) std::clog << "JR Z/";
 				if (inst == 0x30) std::clog << "JR NC/";
 				if (inst == 0x38) std::clog << "JR C/";
-				std::clog << "JR " << ccName((inst - 0x20) >> 3 ) << (memory[PC+1] > 127 ? " -" : " +")
+				std::clog << "JR " << ccName((inst - 0x20) >> 3 )
+						  << (memory[PC+1] > 127 ? " -" : " +")
 						  << (memory[PC+1] > 127 ? 256 - memory[PC+1] : memory[PC+1])
-						  << " \t\t; " << std::hex << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
+						  << " \t\t; " << std::hex
+						  << PC + (memory[PC+1] > 127 ? memory[PC+1] - 256 : memory[PC+1]) + 2
 						  << "h" << std::endl;
 				break;
 			}
@@ -542,7 +554,8 @@ protected:
 			case 0x22 : {	// LD (addr), HL
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "LD (" << std::hex << std::setw(4) << std::setfill('0') << addr << "h),HL" << std::endl;
+				std::clog << "LD (" << std::hex << std::setw(4)
+						  << std::setfill('0') << addr << "h),HL" << std::endl;
 				logState(state);
 				break;
 			}
@@ -550,7 +563,8 @@ protected:
 			case 0x2A : {	// LD HL,(nn)
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "LD HL,(" << std::hex << std::setw(4) << std::setfill('0') << addr << "h)" << std::endl;
+				std::clog << "LD HL,(" << std::hex << std::setw(4)
+						  << std::setfill('0') << addr << "h)" << std::endl;
 				break;
 			}
 				
@@ -563,14 +577,16 @@ protected:
 			case 0x32 : {	// LD (nn),A
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "LD (" << std::setw(4) << std::setfill('0') << addr << "h),A" << std::endl;
+				std::clog << "LD (" << std::setw(4) << std::setfill('0') 
+						  << addr << "h),A" << std::endl;
 				break;
 			}
 	
 			case 0x3A : {	// LD A,(addr)
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "LD A,(" << std::setw(4) << std::setfill('0') << addr << "h)" << std::endl;
+				std::clog << "LD A,(" << std::setw(4) << std::setfill('0') 
+						  << addr << "h)" << std::endl;
 				break;
 			}
 				
@@ -638,7 +654,8 @@ protected:
 			case 0x7E :
 			case 0x7F : {	// LD r,r'
 				logAddrInst(PC, inst);
-				std::clog << "LD " << rName(inst >> 3) << ',' << rName(inst) << std::endl;
+				std::clog << "LD " << rName(inst >> 3) << ',' << rName(inst)
+						  << std::endl;
 				break;
 			}
 
@@ -824,7 +841,8 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "ADD A," << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127))
+					std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -838,7 +856,8 @@ protected:
 			case 0xCD : { 	// CALL nn
 				const uint16_t addr = memory[PC+2] * 256U + memory[PC+1];
 				logAddrInst(PC, inst, memory[PC+1], memory[PC+2]);
-				std::clog << "CALL " << std::hex << std::setw(4) << addr << 'h' << std::endl;
+				std::clog << "CALL " << std::hex << std::setw(4) << addr << 'h'
+						  << std::endl;
 				break;
 			}
 	
@@ -846,7 +865,8 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "SUB " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127))
+					std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -873,7 +893,8 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "AND " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127))
+					std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -905,7 +926,8 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "OR " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127))
+					std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
@@ -932,17 +954,20 @@ protected:
 				const uint8_t v = memory[PC+1];
 				logAddrInst(PC, inst, v);
 				std::clog << "CP " << std::dec << unsigned(v);
-				if ((v >= ' ') && (v < 127)) std::clog << " \t; '" << char(v) << "'";
+				if ((v >= ' ') && (v < 127))
+					std::clog << " \t; '" << char(v) << "'";
 				std::clog << std::endl;
 				break;
 			}
 
 			default:
-				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC << "\t";
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+0]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+1]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+2]) << "\t\t\t";
-				std::clog << " : Unknown instruction in " << __FILE__ << ": " << S__LINE__ << " - " << __PRETTY_FUNCTION__ << std::endl;
+				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC
+						  << "\t" << std::setw(2) << unsigned(memory[PC+0])
+						  << ' ' << unsigned(memory[PC+1]) << ' ' 
+						  << unsigned(memory[PC+2]) 
+						  << "\t\t\t : Unknown instruction in " << __FILE__ 
+						  << ": " << __LINE__ << " - " << __PRETTY_FUNCTION__ 
+						  << std::endl;
 				break;
 	
 		}
@@ -955,11 +980,13 @@ protected:
 		
 		switch (inst2) {
 			default:
-				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC << "\t";
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+0]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+1]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+2]) << "\t\t\t";
-				std::clog << " : Unknown instruction in " << __FILE__ << ": " << S__LINE__ << " - " << __PRETTY_FUNCTION__ << std::endl;
+				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC
+						  << "\t" << std::setw(2) << unsigned(memory[PC+0])
+						  << ' ' << unsigned(memory[PC+1]) << ' ' 
+						  << unsigned(memory[PC+2]) 
+						  << "\t\t\t : Unknown instruction in " << __FILE__
+						  << ": " << __LINE__ << " - " << __PRETTY_FUNCTION__
+						  << std::endl;
 				break;
 		}
 /*	
@@ -1041,7 +1068,8 @@ protected:
 			case 0x73 : {	// LD (nn),dd
 				const uint16_t addr = memory[PC+3] * 256U + memory[PC+2];
 				logAddrInst(PC, inst, inst2, memory[PC+2], memory[PC+3]);
-				std::clog << "LD (" << std::hex << std::setw(4) << addr << ")," << ddName(inst >> 4) << std::endl;
+				std::clog << "LD (" << std::hex << std::setw(4) << addr << "),"
+						  << ddName(inst >> 4) << std::endl;
 				break;
 			}
 			
@@ -1057,16 +1085,19 @@ protected:
 			case 0x7B : {	// LD dd,(nn)
 				const uint16_t addr = memory[PC+3] * 256U + memory[PC+2];
 				logAddrInst(PC, inst, inst2, memory[PC+2], memory[PC+3]);
-				std::clog << "LD " << ddName(inst >> 4) << ",(" << std::hex << std::setw(4) << addr << ")" << std::endl;
+				std::clog << "LD " << ddName(inst >> 4) << ",(" << std::hex
+						  << std::setw(4) << addr << ")" << std::endl;
 				break;
 			}
 
 			default:
-				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC << "\t";
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+0]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+1]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+2]) << "\t\t\t";
-				std::clog << " : Unknown instruction in " << __FILE__ << ": " << S__LINE__ << " - " << __PRETTY_FUNCTION__ << std::endl;
+				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC
+						  << "\t" << std::setw(2) << unsigned(memory[PC+0]) 
+						  << ' ' << unsigned(memory[PC+1]) << ' ' 
+						  << unsigned(memory[PC+2]) 
+						  << "\t\t\t : Unknown instruction in " << __FILE__ 
+						  << ": " << __LINE__ << " - " << __PRETTY_FUNCTION__ 
+						  << std::endl;
 				break;
 		}
 	}
@@ -1079,39 +1110,39 @@ protected:
 		switch (inst2) {
 
 			default:
-				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC << "\t";
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+0]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+1]) << ' ';
-				std::clog << std::setw(2) << std::setfill('0') << unsigned(memory[PC+2]) << "\t\t\t";
-				std::clog << " : Unknown instruction in " << __FILE__ << ": " << S__LINE__ << " - " << __PRETTY_FUNCTION__ << std::endl;
+				std::clog << std::hex << std::setw(4) << std::setfill('0') << PC
+						  << "\t" << std::setw(2) << unsigned(memory[PC+0]) 
+						  << ' ' << unsigned(memory[PC+1]) << ' ' 
+						  << unsigned(memory[PC+2]) 
+						  << "\t\t\t : Unknown instruction in " << __FILE__ 
+						  << ": " << __LINE__ << " - " << __PRETTY_FUNCTION__ 
+						  << std::endl;
 				break;
 		}
 	}
 
 	void logAddrInst(const uint16_t addr, const uint8_t inst) const {
-		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "\t";
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst) << "\t\t\t\t";
+		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr
+				  << "\t" << std::setw(2) << unsigned(inst) << "\t\t\t\t";
 	}
 
 	void logAddrInst(const uint16_t addr, const uint8_t inst1, const uint8_t inst2) const {
-		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "\t";
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst1) << ' ';
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst2) << "\t\t\t";
+		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr
+				  << "\t" << std::setw(2) << unsigned(inst1) << ' ' 
+				  << unsigned(inst2) << "\t\t\t";
 	}
 
 	void logAddrInst(const uint16_t addr, const uint8_t inst1, const uint8_t inst2, const uint8_t inst3) const {
-		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "\t";
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst1) << ' ';
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst2) << ' ';
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst3) << "\t\t";
+		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr
+				  << "\t" << std::setw(2) << unsigned(inst1) << ' ' 
+				  << unsigned(inst2) << ' ' << unsigned(inst3) << "\t\t";
 	}
 	
 	void logAddrInst(const uint16_t addr, const uint8_t inst1, const uint8_t inst2, const uint8_t inst3, const uint8_t inst4) const {
-		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr << "\t";
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst1) << ' ';
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst2) << ' ';
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst3) << ' ';
-		std::clog << std::setw(2) << std::setfill('0') << unsigned(inst4) << "\t\t";
+		std::clog << std::hex << std::setw(4) << std::setfill('0') << addr 
+				  << "\t" << std::setw(2) << unsigned(inst1) << ' ' 
+				  << unsigned(inst2) << ' ' << unsigned(inst3) << ' ' 
+				  << unsigned(inst4) << "\t\t";
 	}
 	
 	void logState(const ZZ80State& state) const {
@@ -1134,25 +1165,29 @@ protected:
 	
 	inline
 	const std::string rName(const uint8_t r) const {
-		const char *const reg[] = { "B", "C", "D", "E", "H", "L", "(HL)", "A" };
+		static const char *const reg[] = 
+			{ "B", "C", "D", "E", "H", "L", "(HL)", "A" };
 		return reg[r & 0x07];
 	}
 
 	inline
 	const std::string ddName(const uint8_t dd) const {
-		const char *const reg[] = { "BC", "DE", "HL", "SP" };
+		static const char *const reg[] = 
+			{ "BC", "DE", "HL", "SP" };
 		return reg[dd & 0x03];
 	}
 	
 	inline
 	const std::string qqName(const uint8_t qq) const {
-		const char *const reg[] = { "BC", "DE", "HL", "SP" };
+		static const char *const reg[] = 
+			{ "BC", "DE", "HL", "SP" };
 		return reg[qq & 0x03];
 	}
 	
 	inline
 	const std::string ccName(const uint8_t cc) const {
-		const char *const reg[] = { "NZ", "Z", "NC", "C", "PO", "PE", "P", "M" };
+		static const char *const reg[] = 
+			{ "NZ", "Z", "NC", "C", "PO", "PE", "P", "M" };
 		return reg[cc & 0x07];
 	}
 	
