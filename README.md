@@ -36,6 +36,8 @@ or another CCP version and change loading & running parameters accordingly in so
 
 Create dir /A, /B, _etc._ as you need. They will simulate local CP/M disks. Only files with 8+3 filename will be seenable. Try `DIR a:`.
 
+You may also use [GlassTTY: TrueType VT220 font](https://github.com/svofski/glasstty).
+
 ## Usage example
 
 ### Start emulator & load CP/M (as default)
@@ -114,6 +116,7 @@ Distributed under the Apache 2.0 license. See [``LICENSE``](https://github.com/M
 5. Create a new Pull Request
 
 ## References
+
 
 * https://github.com/joelang/z80-sbc: Source code of [cpm22.lst](https://raw.githubusercontent.com/joelang/z80-sbc/master/cpm22.lst)
 * BDOS functions & explanations: http://seasip.info/Cpm/bdos.html
