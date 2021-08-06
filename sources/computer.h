@@ -123,14 +123,7 @@ public:
 		std::cout << "Copyright (c) 1999-2018 Manuel Sainz de Baranda y Goni." << std::endl;
 		std::cout << "Released under the terms of the GNU General Public License v3." << std::endl;
 		std::cout << std::endl;
-	};
-	
-/**
- * Initialize cpu and BDOS ; optionaly load program (CPP) at designed address.
- * @param aFilename Path to binary to load in memory.
- * @param aAddr Memory address where to load the binary.
- */
-	void init(const std::string& aFilename = "", const uint16_t aAddr = 0) {
+
 		cpu.context = this;
 		cpu.read = Computer::read;
 		cpu.write = Computer::write;
@@ -139,6 +132,14 @@ public:
 		cpu.int_data = NULL;
 		cpu.halt = NULL;
 		z80_power(&cpu, true);
+	};
+	
+/**
+ * Initialize cpu and BDOS ; optionaly load program (CPP) at designed address.
+ * @param aFilename Path to binary to load in memory.
+ * @param aAddr Memory address where to load the binary.
+ */
+	void init(const std::string& aFilename = "", const uint16_t aAddr = 0) {
 		z80_reset(&cpu);
 		
 		bios.init(memory);
@@ -167,9 +168,10 @@ public:
 				const uint8_t c = fs.get();
 				if (!fs.eof()) {
 					if (addr >= MEMORY_SIZE * 1024L) {
-						std::cerr << ">> Writing out of memory: "
+						constexpr char WRITING_OUT_OF_MEMORY[] = "Writing out of memory";
+						std::cerr << ">> " << WRITING_OUT_OF_MEMORY << ": "
 								  << std::hex << addr << std::endl;
-						throw std::runtime_error("Writing out of memory");
+						throw std::runtime_error(WRITING_OUT_OF_MEMORY);
 					}
 					memory[addr++] = c;
 				}
@@ -177,8 +179,9 @@ public:
 			fs.close();
 //			std::clog << ">> " << addr - aAddr << " bytes read." << std::endl;
 		} else {
-			std::cerr << ">> Error opening file \"" << aFile << "\"" << std::endl;
-			throw std::runtime_error("Error opening file!");
+			constexpr char ERROR_OPENING_FILE[] = "Error opening file";
+			std::cerr << ">> " << ERROR_OPENING_FILE << '"' << aFile << '"' << std::endl;
+			throw std::runtime_error(ERROR_OPENING_FILE);
 		}
 	}
 	
@@ -187,8 +190,9 @@ public:
 		cpu.state.Z_Z80_STATE_MEMBER_PC = aAddr;
 		while (true) {
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC >= MEMORY_SIZE * 1024) {
-				std::cerr << ">> Executing out of memory!" << std::endl;
-				throw std::runtime_error("Executing out of memory!");
+				constexpr char EXECUTING_OUT_OF_MEMORY[] = "Executing out of memory!";
+				std::cerr << ">> " << EXECUTING_OUT_OF_MEMORY << std::endl;
+				throw std::runtime_error(EXECUTING_OUT_OF_MEMORY);
 			}
 			
 			if (cpu.state.Z_Z80_STATE_MEMBER_PC == 0x0000) {	// Reset
@@ -232,8 +236,9 @@ public:
 			logInst(cpu.state);
 #endif
 			if (memory[cpu.state.Z_Z80_STATE_MEMBER_PC] == 0x76)  {		// HALT
-				std::cerr << ">> HALT instruction at " << std::hex << std::setw(4) << cpu.state.Z_Z80_STATE_MEMBER_PC << "!" << std::endl;
-				throw std::runtime_error("HALT instruction!");
+				constexpr char HALT_INSTRUCTION[] = "HALT instruction";
+				std::cerr << ">> "<< HALT_INSTRUCTION << " at " << std::hex << std::setw(4) << cpu.state.Z_Z80_STATE_MEMBER_PC << "!" << std::endl;
+				throw std::runtime_error(HALT_INSTRUCTION);
 			}
 			z80_run(&cpu, 1);	// return cycles
 		}
